@@ -1,4 +1,5 @@
 # Build artifact: rebuild with patches/ps4_gyro_intercept/build.sh
 SimWheel_PS4Gyro_v5.2.2.xapk
-work/
+SimWheel_PS4_full_v5.2.2.xapk
 build_work/
+work/
