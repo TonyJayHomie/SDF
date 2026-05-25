@@ -65,6 +65,8 @@ public class ControllerInput {
 
         float throttle = shapeTrigger(r);
         float brake    = shapeTrigger(l);
+        if (settings.invertThrottle) throttle = 1f - throttle;
+        if (settings.invertBrake)    brake    = 1f - brake;
         if (listener != null) listener.onTriggers(throttle, brake);
 
         float lx = getAxis(ev, MotionEvent.AXIS_X, 0f);

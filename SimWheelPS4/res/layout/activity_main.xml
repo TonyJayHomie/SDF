@@ -134,6 +134,13 @@
                     android:layout_weight="1"
                     android:textColor="@color/text"
                     android:text="Controller gyro" />
+                <RadioButton
+                    android:id="@+id/rb_gyro_touch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text"
+                    android:text="Touch wheel" />
             </RadioGroup>
 
             <TextView
@@ -141,7 +148,69 @@
                 style="@style/Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Controller gyro: requires PS4/PS5 controller paired and Android 7.0+ (the system must advertise the controller IMU as a dynamic sensor)." />
+                android:text="Phone gyro = tilt phone. Controller gyro = DualShock IMU (Android 7.0+, if exposed). Touch wheel = spin the on-screen wheel with your finger." />
+
+            <com.sdf.simwheelps4.TouchWheel
+                android:id="@+id/touch_wheel"
+                android:layout_width="match_parent"
+                android:layout_height="260dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <CheckBox
+                android:id="@+id/chk_haptic_btn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text"
+                android:layout_marginTop="6dp"
+                android:text="Vibrate on button press (Haptic Feedback)" />
+
+            <CheckBox
+                android:id="@+id/chk_mouse_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text"
+                android:text="Mouse mode (gyro moves PC cursor — for menus)" />
+
+            <TextView
+                android:id="@+id/lbl_mouse_sens"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Mouse Sensitivity: 1.0" />
+            <SeekBar
+                android:id="@+id/seek_mouse_sens"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="50"
+                android:progress="10" />
+
+            <LinearLayout
+                android:id="@+id/clutch_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                android:layout_marginTop="6dp">
+                <TextView style="@style/Body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clutch:"
+                    android:layout_gravity="center_vertical" />
+                <SeekBar
+                    android:id="@+id/seek_clutch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:max="1000" />
+                <TextView
+                    android:id="@+id/val_clutch"
+                    style="@style/Body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0%"
+                    android:layout_gravity="center_vertical" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Live telemetry card -->

@@ -7,7 +7,6 @@ import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.ProgressBar;
@@ -15,9 +14,9 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 /**
- * Live calibration screen. Wraps GyroSource and ControllerInput just like
- * MainActivity, but renders the results into the WheelView and trigger bars
- * so the user can tune sensitivity / curves and see the effect immediately.
+ * Calibration screen — mirrors the original SimWheel Connect's gyro controls
+ * (Gyro Sensitivity 0..5, Gyro Anti-Shake 0..99, Steering center duration 0..10)
+ * plus throttle/brake/clutch tuning and inverts.
  */
 public class CalibrationActivity extends Activity
         implements GyroSource.Listener, ControllerInput.Listener {
@@ -29,9 +28,11 @@ public class CalibrationActivity extends Activity
 
     private WheelView wheel;
     private TextView  valSteer;
-    private TextView  lblRange, lblDz, lblTilt, lblCurve, lblTMin, lblTMax, lblTCurve;
-    private SeekBar   seekRange, seekDz, seekTilt, seekCurve, seekTMin, seekTMax, seekTCurve;
-    private CheckBox  chkInvert;
+    private TextView  lblRange, lblSens, lblAntiShake, lblCenter,
+                      lblTMin, lblTMax, lblTCurve;
+    private SeekBar   seekRange, seekSens, seekAntiShake, seekCenter,
+                      seekTMin, seekTMax, seekTCurve;
+    private CheckBox  chkInvert, chkShowAngle, chkInvThr, chkInvBrk, chkClutch;
     private ProgressBar barL2, barR2;
     private final Handler ui = new Handler(Looper.getMainLooper());
 
@@ -42,126 +43,157 @@ public class CalibrationActivity extends Activity
 
         settings = new Settings(this);
         map      = new ButtonMap();
-        if (settings.mappingProfileJson != null) map.fromJson(settings.mappingProfileJson);
-        gyro     = new GyroSource(this, this);
-        gyro.setRangeDeg(settings.steeringRangeDeg);
-        gyro.setPhysicalTiltDeg(settings.physicalTiltRangeDeg);
-        gyro.setDeadzoneDeg(settings.gyroDeadzoneDeg);
-        gyro.setCurveExp(settings.steeringCurve);
-        gyro.setInvert(settings.invertSteering);
+        map.fromJson(settings.mappingProfileJson);
+
+        gyro = new GyroSource(this, this);
+        applyGyroSettings();
         gyro.setSource(settings.gyroSource);
-        ctlIn    = new ControllerInput(this, map, settings);
+
+        ctlIn = new ControllerInput(this, map, settings);
 
         wheel    = (WheelView) findViewById(R.id.wheel);
-        valSteer = (TextView) findViewById(R.id.val_steer_deg);
+        valSteer = (TextView)  findViewById(R.id.val_steer_deg);
         barL2    = (ProgressBar) findViewById(R.id.bar_l2);
         barR2    = (ProgressBar) findViewById(R.id.bar_r2);
 
-        lblRange   = (TextView) findViewById(R.id.lbl_range_val);
-        lblDz      = (TextView) findViewById(R.id.lbl_deadzone_val);
-        lblTilt    = (TextView) findViewById(R.id.lbl_tilt_val);
-        lblCurve   = (TextView) findViewById(R.id.lbl_curve_val);
-        lblTMin    = (TextView) findViewById(R.id.lbl_trig_min_val);
-        lblTMax    = (TextView) findViewById(R.id.lbl_trig_max_val);
-        lblTCurve  = (TextView) findViewById(R.id.lbl_trig_curve_val);
-        seekRange  = (SeekBar)  findViewById(R.id.seek_range);
-        seekDz     = (SeekBar)  findViewById(R.id.seek_deadzone);
-        seekTilt   = (SeekBar)  findViewById(R.id.seek_tilt);
-        seekCurve  = (SeekBar)  findViewById(R.id.seek_curve);
-        seekTMin   = (SeekBar)  findViewById(R.id.seek_trig_min);
-        seekTMax   = (SeekBar)  findViewById(R.id.seek_trig_max);
-        seekTCurve = (SeekBar)  findViewById(R.id.seek_trig_curve);
-        chkInvert  = (CheckBox) findViewById(R.id.chk_invert);
+        lblRange     = (TextView) findViewById(R.id.lbl_range_val);
+        lblSens      = (TextView) findViewById(R.id.lbl_sens_val);
+        lblAntiShake = (TextView) findViewById(R.id.lbl_antishake_val);
+        lblCenter    = (TextView) findViewById(R.id.lbl_center_val);
+        lblTMin      = (TextView) findViewById(R.id.lbl_trig_min_val);
+        lblTMax      = (TextView) findViewById(R.id.lbl_trig_max_val);
+        lblTCurve    = (TextView) findViewById(R.id.lbl_trig_curve_val);
+        seekRange     = (SeekBar) findViewById(R.id.seek_range);
+        seekSens      = (SeekBar) findViewById(R.id.seek_sens);
+        seekAntiShake = (SeekBar) findViewById(R.id.seek_antishake);
+        seekCenter    = (SeekBar) findViewById(R.id.seek_center);
+        seekTMin      = (SeekBar) findViewById(R.id.seek_trig_min);
+        seekTMax      = (SeekBar) findViewById(R.id.seek_trig_max);
+        seekTCurve    = (SeekBar) findViewById(R.id.seek_trig_curve);
+        chkInvert     = (CheckBox) findViewById(R.id.chk_invert);
+        chkShowAngle  = (CheckBox) findViewById(R.id.chk_show_angle);
+        chkInvThr     = (CheckBox) findViewById(R.id.chk_invert_throttle);
+        chkInvBrk     = (CheckBox) findViewById(R.id.chk_invert_brake);
+        chkClutch     = (CheckBox) findViewById(R.id.chk_clutch);
 
-        // Initial slider positions from settings.
-        seekRange .setProgress(clampInt(Math.round(settings.steeringRangeDeg - 90f), 0, 2430));
-        seekDz    .setProgress(clampInt(Math.round(settings.gyroDeadzoneDeg * 10f), 0, 200));
-        seekTilt  .setProgress(clampInt(Math.round(settings.physicalTiltRangeDeg) - 5, 0, 175));
-        seekCurve .setProgress(clampInt(Math.round(settings.steeringCurve * 100f), 20, 200));
-        seekTMin  .setProgress(clampInt(Math.round(settings.triggerMin * 1000f), 0, 500));
-        seekTMax  .setProgress(clampInt(Math.round(settings.triggerMax * 1000f), 100, 1000));
-        seekTCurve.setProgress(clampInt(Math.round(settings.triggerCurve * 100f), 20, 200));
-        chkInvert.setChecked(settings.invertSteering);
-        chkInvert.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override public void onCheckedChanged(CompoundButton b, boolean v) {
-                settings.invertSteering = v;
-                settings.save();
-                gyro.setInvert(v);
-            }
-        });
+        seekRange    .setProgress(clampInt(Math.round(settings.steeringRangeDeg - 90f), 0, 2430));
+        seekSens     .setProgress(clampInt(Math.round(settings.gyroSensitivity * 10f), 0, 50));
+        seekAntiShake.setProgress(clampInt(Math.round(settings.gyroAntiShake), 0, 99));
+        seekCenter   .setProgress(clampInt(Math.round(settings.centerDurationSec * 10f), 0, 100));
+        seekTMin     .setProgress(clampInt(Math.round(settings.triggerMin * 1000f), 0, 500));
+        seekTMax     .setProgress(clampInt(Math.round(settings.triggerMax * 1000f), 100, 1000));
+        seekTCurve   .setProgress(clampInt(Math.round(settings.triggerCurve * 100f), 20, 200));
+        chkInvert    .setChecked(settings.invertSteering);
+        chkShowAngle .setChecked(settings.showSteeringAngle);
+        chkInvThr    .setChecked(settings.invertThrottle);
+        chkInvBrk    .setChecked(settings.invertBrake);
+        chkClutch    .setChecked(settings.clutchEnabled);
         updateLabels();
 
         SeekBar.OnSeekBarChangeListener l = new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
                 int id = sb.getId();
-                if (id == R.id.seek_range)           settings.steeringRangeDeg     = p + 90f;
-                else if (id == R.id.seek_deadzone)   settings.gyroDeadzoneDeg      = p / 10f;
-                else if (id == R.id.seek_tilt)       settings.physicalTiltRangeDeg = p + 5f;
-                else if (id == R.id.seek_curve)      settings.steeringCurve        = Math.max(0.2f, p / 100f);
-                else if (id == R.id.seek_trig_min)   settings.triggerMin           = p / 1000f;
-                else if (id == R.id.seek_trig_max)   settings.triggerMax           = p / 1000f;
-                else if (id == R.id.seek_trig_curve) settings.triggerCurve         = Math.max(0.2f, p / 100f);
+                if      (id == R.id.seek_range)        settings.steeringRangeDeg  = p + 90f;
+                else if (id == R.id.seek_sens)         settings.gyroSensitivity   = p / 10f;
+                else if (id == R.id.seek_antishake)    settings.gyroAntiShake     = p;
+                else if (id == R.id.seek_center)       settings.centerDurationSec = p / 10f;
+                else if (id == R.id.seek_trig_min)     settings.triggerMin        = p / 1000f;
+                else if (id == R.id.seek_trig_max)     settings.triggerMax        = p / 1000f;
+                else if (id == R.id.seek_trig_curve)   settings.triggerCurve      = Math.max(0.2f, p / 100f);
                 settings.save();
-                gyro.setRangeDeg(settings.steeringRangeDeg);
-                gyro.setPhysicalTiltDeg(settings.physicalTiltRangeDeg);
-                gyro.setDeadzoneDeg(settings.gyroDeadzoneDeg);
-                gyro.setCurveExp(settings.steeringCurve);
+                applyGyroSettings();
                 updateLabels();
             }
             @Override public void onStartTrackingTouch(SeekBar sb) {}
             @Override public void onStopTrackingTouch(SeekBar sb) {}
         };
         seekRange.setOnSeekBarChangeListener(l);
-        seekDz.setOnSeekBarChangeListener(l);
-        seekTilt.setOnSeekBarChangeListener(l);
-        seekCurve.setOnSeekBarChangeListener(l);
+        seekSens.setOnSeekBarChangeListener(l);
+        seekAntiShake.setOnSeekBarChangeListener(l);
+        seekCenter.setOnSeekBarChangeListener(l);
         seekTMin.setOnSeekBarChangeListener(l);
         seekTMax.setOnSeekBarChangeListener(l);
         seekTCurve.setOnSeekBarChangeListener(l);
+
+        CompoundButton.OnCheckedChangeListener cb = new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton b, boolean v) {
+                int id = b.getId();
+                if      (id == R.id.chk_invert)          { settings.invertSteering    = v; gyro.setInvert(v); }
+                else if (id == R.id.chk_show_angle)      { settings.showSteeringAngle = v; valSteer.setVisibility(v ? View.VISIBLE : View.GONE); }
+                else if (id == R.id.chk_invert_throttle) { settings.invertThrottle    = v; }
+                else if (id == R.id.chk_invert_brake)    { settings.invertBrake       = v; }
+                else if (id == R.id.chk_clutch)          { settings.clutchEnabled     = v; }
+                settings.save();
+            }
+        };
+        chkInvert    .setOnCheckedChangeListener(cb);
+        chkShowAngle .setOnCheckedChangeListener(cb);
+        chkInvThr    .setOnCheckedChangeListener(cb);
+        chkInvBrk    .setOnCheckedChangeListener(cb);
+        chkClutch    .setOnCheckedChangeListener(cb);
 
         findViewById(R.id.btn_center).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { gyro.recenter(); }
         });
         findViewById(R.id.btn_reset_calib).setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                settings.steeringRangeDeg     = 900f;
-                settings.physicalTiltRangeDeg = 45f;
-                settings.gyroDeadzoneDeg      = 2f;
-                settings.steeringCurve        = 1f;
-                settings.invertSteering       = false;
-                settings.triggerMin = 0f;
-                settings.triggerMax = 1f;
-                settings.triggerCurve = 1f;
-                settings.save();
-                seekRange.setProgress(810);
-                seekDz.setProgress(20);
-                seekTilt.setProgress(40);
-                seekCurve.setProgress(100);
-                seekTMin.setProgress(0);
-                seekTMax.setProgress(1000);
-                seekTCurve.setProgress(100);
-                chkInvert.setChecked(false);
-                gyro.setRangeDeg(900);
-                gyro.setPhysicalTiltDeg(45);
-                gyro.setDeadzoneDeg(2);
-                gyro.setCurveExp(1);
-                gyro.setInvert(false);
-                updateLabels();
-            }
+            @Override public void onClick(View v) { resetDefaults(); }
         });
+
+        valSteer.setVisibility(settings.showSteeringAngle ? View.VISIBLE : View.GONE);
+    }
+
+    private void applyGyroSettings() {
+        gyro.setRangeDeg(settings.steeringRangeDeg);
+        gyro.setSensitivity(settings.gyroSensitivity);
+        gyro.setAntiShake(settings.gyroAntiShake);
+        gyro.setCenterDurationSec(settings.centerDurationSec);
+        gyro.setInvert(settings.invertSteering);
+    }
+
+    private void resetDefaults() {
+        settings.steeringRangeDeg  = 900f;
+        settings.gyroSensitivity   = 1f;
+        settings.gyroAntiShake     = 80f;
+        settings.centerDurationSec = 0f;
+        settings.invertSteering    = false;
+        settings.showSteeringAngle = true;
+        settings.triggerMin   = 0f;
+        settings.triggerMax   = 1f;
+        settings.triggerCurve = 1f;
+        settings.invertThrottle = false;
+        settings.invertBrake    = false;
+        settings.clutchEnabled  = false;
+        settings.save();
+        seekRange.setProgress(810);
+        seekSens.setProgress(10);
+        seekAntiShake.setProgress(80);
+        seekCenter.setProgress(0);
+        seekTMin.setProgress(0);
+        seekTMax.setProgress(1000);
+        seekTCurve.setProgress(100);
+        chkInvert.setChecked(false);
+        chkShowAngle.setChecked(true);
+        chkInvThr.setChecked(false);
+        chkInvBrk.setChecked(false);
+        chkClutch.setChecked(false);
+        applyGyroSettings();
+        updateLabels();
     }
 
     @Override protected void onResume() { super.onResume(); gyro.start(); }
     @Override protected void onPause()  { super.onPause();  gyro.stop();  }
 
     private void updateLabels() {
-        lblRange .setText(String.format("Steering range: %.0f°  (must match PC receiver's userRange)", settings.steeringRangeDeg));
-        lblDz    .setText(String.format("Gyro deadzone: %.1f°", settings.gyroDeadzoneDeg));
-        lblTilt  .setText(String.format("Tilt for full lock: %.0f°", settings.physicalTiltRangeDeg));
-        lblCurve .setText(String.format("Response curve exponent: %.2f", settings.steeringCurve));
-        lblTMin  .setText(String.format("Trigger deadzone (min): %.2f", settings.triggerMin));
+        lblRange    .setText(String.format("Steering range: %.0f°  (must match PC receiver's userRange)", settings.steeringRangeDeg));
+        lblSens     .setText(String.format("Gyro Sensitivity: %.1f  (Default 1, higher = more sensitive, max 5)", settings.gyroSensitivity));
+        lblAntiShake.setText(String.format("Gyro Anti-Shake: %.0f  (0 = no filter, 99 = max smooth)", settings.gyroAntiShake));
+        if (settings.centerDurationSec <= 0.01f)
+            lblCenter.setText("Steering center duration: off  (auto-return to center in seconds, 0 = off)");
+        else
+            lblCenter.setText(String.format("Steering center duration: %.1f s  (auto-return)", settings.centerDurationSec));
+        lblTMin  .setText(String.format("Trigger deadzone (min): %.2f",   settings.triggerMin));
         lblTMax  .setText(String.format("Trigger saturation (max): %.2f", settings.triggerMax));
-        lblTCurve.setText(String.format("Trigger response curve: %.2f", settings.triggerCurve));
+        lblTCurve.setText(String.format("Trigger response curve: %.2f",   settings.triggerCurve));
     }
 
     private static int clampInt(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -169,7 +201,7 @@ public class CalibrationActivity extends Activity
     @Override public void onSteeringChanged(final float angleDeg) {
         ui.post(new Runnable() {
             @Override public void run() {
-                wheel.set(-angleDeg, settings.steeringRangeDeg); // negate for natural visual rotation
+                wheel.set(-angleDeg, settings.steeringRangeDeg);
                 valSteer.setText(String.format("%+.1f°", angleDeg));
             }
         });

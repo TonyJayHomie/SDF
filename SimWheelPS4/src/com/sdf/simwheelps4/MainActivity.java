@@ -2,19 +2,19 @@ package com.sdf.simwheelps4;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings.Secure;
 import android.text.TextUtils;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -23,15 +23,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.util.Collections;
 import java.util.Enumeration;
 
-/**
- * Tabs are flattened into a single scrollable screen — easier on small screens
- * and keeps the gamepad input in one window so KeyEvent dispatch is simple.
- */
 public class MainActivity extends Activity
-        implements UdpSender.Listener, GyroSource.Listener, GyroSource.AvailabilityListener, ControllerInput.Listener {
+        implements UdpSender.Listener, GyroSource.Listener, GyroSource.AvailabilityListener,
+                   ControllerInput.Listener, TouchWheel.Listener {
 
     private Settings settings;
     private ButtonMap map;
@@ -44,18 +40,20 @@ public class MainActivity extends Activity
     private TextView valSteering, valThrottle, valBrake, valPackets, valRate;
     private ProgressBar barSteering, barThrottle, barBrake;
     private EditText editIp;
-    private SeekBar  seekVibMaster;
-    private TextView lblVibMaster;
+    private SeekBar  seekVibMaster, seekClutch, seekMouseSens;
+    private TextView lblVibMaster, lblMouseSens, valClutch;
     private RadioGroup grpGyro;
-    private RadioButton rbGyroPhone, rbGyroController;
+    private RadioButton rbGyroPhone, rbGyroController, rbGyroTouch;
     private TextView gyroHint;
+    private TouchWheel touchWheel;
+    private LinearLayout clutchRow;
+    private CheckBox chkHapticBtn, chkMouseMode;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     private float liveSteer    = 0f;
     private float liveThrottle = 0f;
     private float liveBrake    = 0f;
-    private boolean attached   = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +67,7 @@ public class MainActivity extends Activity
         vib = new VibrationEngine(this, settings);
         vib.start();
 
+        // Refs
         statusLine       = (TextView) findViewById(R.id.status_line);
         controllerStatus = (TextView) findViewById(R.id.controller_status);
         valSteering      = (TextView) findViewById(R.id.val_steering);
@@ -82,26 +81,81 @@ public class MainActivity extends Activity
         editIp           = (EditText) findViewById(R.id.edit_ip);
         seekVibMaster    = (SeekBar) findViewById(R.id.seek_vib_master);
         lblVibMaster     = (TextView) findViewById(R.id.lbl_vib_master_val);
+        grpGyro          = (RadioGroup) findViewById(R.id.grp_gyro_source);
+        rbGyroPhone      = (RadioButton) findViewById(R.id.rb_gyro_phone);
+        rbGyroController = (RadioButton) findViewById(R.id.rb_gyro_controller);
+        rbGyroTouch      = (RadioButton) findViewById(R.id.rb_gyro_touch);
+        gyroHint         = (TextView) findViewById(R.id.gyro_source_hint);
+        touchWheel       = (TouchWheel) findViewById(R.id.touch_wheel);
+        clutchRow        = (LinearLayout) findViewById(R.id.clutch_row);
+        seekClutch       = (SeekBar) findViewById(R.id.seek_clutch);
+        valClutch        = (TextView) findViewById(R.id.val_clutch);
+        chkHapticBtn     = (CheckBox) findViewById(R.id.chk_haptic_btn);
+        chkMouseMode     = (CheckBox) findViewById(R.id.chk_mouse_mode);
+        seekMouseSens    = (SeekBar) findViewById(R.id.seek_mouse_sens);
+        lblMouseSens     = (TextView) findViewById(R.id.lbl_mouse_sens);
+
         editIp.setText(settings.pcIp);
 
-        String phoneName = "Phone";
-        try {
-            String s = Build.MODEL;
-            if (!TextUtils.isEmpty(s)) phoneName = s;
-        } catch (Exception ignored) {}
-
+        String phoneName = (Build.MODEL != null) ? Build.MODEL : "Phone";
         udp = new UdpSender(phoneName, this);
+
         gyro = new GyroSource(this, this);
         gyro.setRangeDeg(settings.steeringRangeDeg);
-        gyro.setPhysicalTiltDeg(settings.physicalTiltRangeDeg);
-        gyro.setDeadzoneDeg(settings.gyroDeadzoneDeg);
-        gyro.setCurveExp(settings.steeringCurve);
+        gyro.setSensitivity(settings.gyroSensitivity);
+        gyro.setAntiShake(settings.gyroAntiShake);
+        gyro.setCenterDurationSec(settings.centerDurationSec);
         gyro.setInvert(settings.invertSteering);
         gyro.setSource(settings.gyroSource);
         gyro.setAvailabilityListener(this);
 
+        touchWheel.setListener(this);
+        touchWheel.setRangeDeg(settings.steeringRangeDeg);
+        touchWheel.setCenterDurationSec(settings.centerDurationSec);
+        touchWheel.setInverted(settings.invertSteering);
+
         ctlIn = new ControllerInput(this, map, settings);
 
+        wireButtons();
+        wireGyroSource();
+        wireToggles();
+
+        seekVibMaster.setProgress(Math.round(settings.vibMaster * 100f));
+        updateVibMasterLabel();
+
+        // Init clutch slider
+        seekClutch.setProgress(Math.round(settings.clutchValue * 1000f));
+        refreshClutchVisibility();
+        seekClutch.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
+                settings.clutchValue = p / 1000f;
+                valClutch.setText(Math.round(settings.clutchValue * 100f) + "%");
+                udp.updateClutch(settings.clutchEnabled, settings.clutchValue);
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+
+        // Mouse sensitivity
+        seekMouseSens.setProgress(Math.round(settings.mouseSensitivity * 10f));
+        updateMouseSensLabel();
+        seekMouseSens.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
+                settings.mouseSensitivity = Math.max(0.1f, p / 10f);
+                updateMouseSensLabel();
+                settings.save();
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+
+        chkHapticBtn.setChecked(settings.hapticOnButton);
+        chkMouseMode.setChecked(settings.mouseMode);
+
+        refreshControllerStatus();
+    }
+
+    private void wireButtons() {
         findViewById(R.id.btn_connect).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { startStream(false); }
         });
@@ -116,12 +170,8 @@ public class MainActivity extends Activity
         });
         findViewById(R.id.btn_open_bt).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                try {
-                    Intent i = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
-                    startActivity(i);
-                } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "Cannot open Bluetooth settings", Toast.LENGTH_SHORT).show();
-                }
+                try { startActivity(new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)); }
+                catch (Exception e) { Toast.makeText(MainActivity.this, "Cannot open Bluetooth settings", Toast.LENGTH_SHORT).show(); }
             }
         });
         findViewById(R.id.btn_calibrate).setOnClickListener(new View.OnClickListener() {
@@ -134,32 +184,6 @@ public class MainActivity extends Activity
             @Override public void onClick(View v) { vib.vibrateTest(); }
         });
 
-        grpGyro          = (RadioGroup) findViewById(R.id.grp_gyro_source);
-        rbGyroPhone      = (RadioButton) findViewById(R.id.rb_gyro_phone);
-        rbGyroController = (RadioButton) findViewById(R.id.rb_gyro_controller);
-        gyroHint         = (TextView) findViewById(R.id.gyro_source_hint);
-        if (GyroSource.SRC_CONTROLLER.equals(settings.gyroSource)) {
-            rbGyroController.setChecked(true);
-        } else {
-            rbGyroPhone.setChecked(true);
-        }
-        grpGyro.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
-            @Override public void onCheckedChanged(RadioGroup g, int checkedId) {
-                String src = (checkedId == R.id.rb_gyro_controller)
-                        ? GyroSource.SRC_CONTROLLER : GyroSource.SRC_PHONE;
-                settings.gyroSource = src;
-                settings.save();
-                gyro.setSource(src);
-                if (GyroSource.SRC_CONTROLLER.equals(src) && !gyro.isControllerGyroAvailable()) {
-                    Toast.makeText(MainActivity.this,
-                        "No controller gyro visible to Android yet — falling back to phone gyro. Make sure the PS4 controller is paired and active.",
-                        Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-
-        seekVibMaster.setProgress(Math.round(settings.vibMaster * 100f));
-        updateVibMasterLabel();
         seekVibMaster.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
                 settings.vibMaster = p / 100f;
@@ -169,26 +193,94 @@ public class MainActivity extends Activity
             @Override public void onStartTrackingTouch(SeekBar sb) {}
             @Override public void onStopTrackingTouch(SeekBar sb) {}
         });
+    }
 
-        refreshControllerStatus();
+    private void wireGyroSource() {
+        if (GyroSource.SRC_CONTROLLER.equals(settings.gyroSource))      rbGyroController.setChecked(true);
+        else if ("touch".equals(settings.gyroSource))                   rbGyroTouch.setChecked(true);
+        else                                                            rbGyroPhone.setChecked(true);
+        applySourceVisibility();
+
+        grpGyro.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(RadioGroup g, int checkedId) {
+                String src;
+                if      (checkedId == R.id.rb_gyro_controller) src = GyroSource.SRC_CONTROLLER;
+                else if (checkedId == R.id.rb_gyro_touch)      src = "touch";
+                else                                            src = GyroSource.SRC_PHONE;
+                settings.gyroSource = src;
+                settings.save();
+                if ("touch".equals(src)) {
+                    gyro.stop();
+                    touchWheel.recenter();
+                } else {
+                    gyro.setSource(src);
+                    gyro.start();
+                    if (GyroSource.SRC_CONTROLLER.equals(src) && !gyro.isControllerGyroAvailable()) {
+                        Toast.makeText(MainActivity.this,
+                            "No controller gyro visible to Android — falling back to phone gyro. Make sure the PS4 controller is paired and active.",
+                            Toast.LENGTH_LONG).show();
+                    }
+                }
+                applySourceVisibility();
+            }
+        });
+    }
+
+    private void wireToggles() {
+        CompoundButton.OnCheckedChangeListener cb = new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton b, boolean v) {
+                int id = b.getId();
+                if      (id == R.id.chk_haptic_btn) settings.hapticOnButton = v;
+                else if (id == R.id.chk_mouse_mode) settings.mouseMode      = v;
+                settings.save();
+                if (id == R.id.chk_mouse_mode) {
+                    udp.updateMouse(v, 0f, 0f);
+                }
+            }
+        };
+        chkHapticBtn.setOnCheckedChangeListener(cb);
+        chkMouseMode.setOnCheckedChangeListener(cb);
+    }
+
+    private void applySourceVisibility() {
+        boolean isTouch = "touch".equals(settings.gyroSource);
+        touchWheel.setVisibility(isTouch ? View.VISIBLE : View.GONE);
+    }
+
+    private void refreshClutchVisibility() {
+        clutchRow.setVisibility(settings.clutchEnabled ? View.VISIBLE : View.GONE);
+        udp.updateClutch(settings.clutchEnabled, settings.clutchValue);
     }
 
     private void updateVibMasterLabel() {
         lblVibMaster.setText("Master vibration intensity: " + Math.round(settings.vibMaster * 100f) + "%");
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        gyro.start();
-        refreshControllerStatus();
+    private void updateMouseSensLabel() {
+        lblMouseSens.setText(String.format("Mouse Sensitivity: %.1f", settings.mouseSensitivity));
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        gyro.stop();
+    protected void onResume() {
+        super.onResume();
+        // Reload settings in case Calibration or Mapping screen changed them.
+        settings.load();
+        if (!TextUtils.isEmpty(settings.mappingProfileJson)) map.fromJson(settings.mappingProfileJson);
+        gyro.setRangeDeg(settings.steeringRangeDeg);
+        gyro.setSensitivity(settings.gyroSensitivity);
+        gyro.setAntiShake(settings.gyroAntiShake);
+        gyro.setCenterDurationSec(settings.centerDurationSec);
+        gyro.setInvert(settings.invertSteering);
+        touchWheel.setRangeDeg(settings.steeringRangeDeg);
+        touchWheel.setCenterDurationSec(settings.centerDurationSec);
+        touchWheel.setInverted(settings.invertSteering);
+        refreshClutchVisibility();
+        applySourceVisibility();
+        if (!"touch".equals(settings.gyroSource)) gyro.start();
+        refreshControllerStatus();
     }
+
+    @Override protected void onPause() { super.onPause(); gyro.stop(); }
 
     @Override
     protected void onDestroy() {
@@ -208,17 +300,14 @@ public class MainActivity extends Activity
                 sb.append("Connected: ").append(d.getName());
             }
         }
-        if (sb.length() == 0) controllerStatus.setText(R.string.hint_no_controller);
-        else                  controllerStatus.setText(sb.toString());
+        controllerStatus.setText(sb.length() == 0 ? getString(R.string.hint_no_controller) : sb.toString());
     }
 
-    /** Begin streaming. If discover==true, broadcast first then stream to that PC. */
     private void startStream(boolean discover) {
         String ip = editIp.getText().toString().trim();
         if (discover) {
-            String bcast = computeBroadcast();
             statusLine.setText(R.string.status_searching);
-            udp.discover(bcast);
+            udp.discover(computeBroadcast());
             return;
         }
         if (TextUtils.isEmpty(ip)) {
@@ -228,13 +317,13 @@ public class MainActivity extends Activity
         settings.pcIp = ip;
         settings.save();
         udp.setTarget(ip, settings.pcPort);
-        gyro.recenter(); // capture current phone pose as center on every connect
+        if (!"touch".equals(settings.gyroSource)) gyro.recenter();
+        else                                       touchWheel.recenter();
         udp.startStreaming();
         statusLine.setText("Streaming → " + ip + ":" + settings.pcPort
-                + " (first connect: type 'y' in the PC console to allow this device)");
+                + "  (first connect: type 'y' in the PC console to allow this device)");
     }
 
-    /** Best-effort: derive the broadcast for the current Wi-Fi subnet. */
     private String computeBroadcast() {
         try {
             Enumeration<NetworkInterface> nis = NetworkInterface.getNetworkInterfaces();
@@ -243,7 +332,7 @@ public class MainActivity extends Activity
                 if (ni.isLoopback() || !ni.isUp()) continue;
                 for (java.net.InterfaceAddress ia : ni.getInterfaceAddresses()) {
                     InetAddress b = ia.getBroadcast();
-                    if (b != null && b instanceof java.net.Inet4Address) return b.getHostAddress();
+                    if (b instanceof java.net.Inet4Address) return b.getHostAddress();
                 }
             }
         } catch (Exception ignored) {}
@@ -258,9 +347,11 @@ public class MainActivity extends Activity
             @Override public void run() {
                 editIp.setText(pcIp);
                 settings.pcIp = pcIp;
+                settings.connectionMode = connection;
                 settings.save();
                 udp.setTarget(pcIp, settings.pcPort);
-                gyro.recenter();
+                if (!"touch".equals(settings.gyroSource)) gyro.recenter();
+                else                                       touchWheel.recenter();
                 udp.startStreaming();
                 statusLine.setText("Streaming → " + pcName + " (" + pcIp + ", " + connection + ")");
             }
@@ -270,9 +361,7 @@ public class MainActivity extends Activity
     @Override
     public void onError(final String message) {
         ui.post(new Runnable() {
-            @Override public void run() {
-                statusLine.setText("Error: " + message);
-            }
+            @Override public void run() { statusLine.setText("Error: " + message); }
         });
     }
 
@@ -291,10 +380,19 @@ public class MainActivity extends Activity
     @Override
     public void onSteeringChanged(float angleDeg) {
         liveSteer = angleDeg;
-        udp.updateAxes(liveSteer, liveThrottle, liveBrake);
+        // Mouse mode: gyro drives mouse cursor instead of steering.
+        if (settings.mouseMode) {
+            // Convert change-in-angle to a small delta. Re-zero the steering value sent.
+            float dx = angleDeg * settings.mouseSensitivity * 0.05f;
+            udp.updateAxes(0f, liveThrottle, liveBrake);
+            udp.updateMouse(true, dx, 0f);
+        } else {
+            udp.updateAxes(liveSteer, liveThrottle, liveBrake);
+            udp.updateMouse(false, 0f, 0f);
+        }
         ui.post(new Runnable() {
             @Override public void run() {
-                valSteering.setText(String.format("%+.1f°", liveSteer));
+                valSteering.setText(settings.showSteeringAngle ? String.format("%+.1f°", liveSteer) : "");
                 int mid = barSteering.getMax() / 2;
                 int delta = Math.round((liveSteer / settings.steeringRangeDeg) * mid);
                 barSteering.setProgress(mid + delta);
@@ -325,6 +423,7 @@ public class MainActivity extends Activity
     public void onButton(int androidKeyCode, boolean pressed, String deviceName) {
         ButtonMap.Entry e = map.forKey(androidKeyCode);
         if (e != null && e.receiverCode > 0) udp.setButton(e.receiverCode, pressed);
+        if (pressed && settings.hapticOnButton) vib.vibrateButton();
     }
 
     @Override public void onLeftStick(float x, float y) {}
@@ -337,29 +436,20 @@ public class MainActivity extends Activity
         ui.post(new Runnable() {
             @Override public void run() {
                 rbGyroController.setEnabled(available);
-                if (available) {
-                    gyroHint.setText("Controller IMU detected: " + name
-                            + ". Tap \"Controller gyro\" to steer with the DualShock.");
-                } else {
-                    gyroHint.setText("Controller gyro: requires PS4/PS5 controller paired and Android 7.0+ (the system must advertise the controller IMU as a dynamic sensor).");
-                    if (rbGyroController.isChecked()) {
-                        rbGyroPhone.setChecked(true);
-                    }
-                }
+                if (available) gyroHint.setText("Controller IMU detected: " + name + ". Pick \"Controller gyro\" to use the DualShock IMU.");
+                else if (rbGyroController.isChecked()) rbGyroPhone.setChecked(true);
             }
         });
     }
 
-    /* ---------- gamepad input dispatch ---------- */
+    // TouchWheel.Listener.onSteeringChanged shares signature with GyroSource.Listener.onSteeringChanged
+    // above — same implementation services both interfaces.
 
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
         if (ctlIn != null && ctlIn.handleKey(event)) return true;
         return super.dispatchKeyEvent(event);
     }
-
-    @Override
-    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent ev) {
         if (ctlIn != null && ctlIn.handleMotion(ev)) return true;
         return super.dispatchGenericMotionEvent(ev);
     }

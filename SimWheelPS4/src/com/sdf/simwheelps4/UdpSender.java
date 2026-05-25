@@ -47,6 +47,11 @@ public class UdpSender {
     private volatile float steeringDeg = 0f;
     private volatile float throttle    = 0f;
     private volatile float brake       = 0f;
+    private volatile float clutch      = 0f;
+    private volatile boolean sendClutch= false;
+    private volatile float mouseDx     = 0f;
+    private volatile float mouseDy     = 0f;
+    private volatile boolean mouseMode = false;
     private final ConcurrentHashMap<Integer, Boolean> buttons = new ConcurrentHashMap<Integer, Boolean>();
 
     private final AtomicLong totalPackets = new AtomicLong(0);
@@ -131,6 +136,17 @@ public class UdpSender {
         this.brake       = brake;
     }
 
+    public void updateClutch(boolean enabled, float value) {
+        this.sendClutch = enabled;
+        this.clutch     = value;
+    }
+
+    public void updateMouse(boolean enabled, float dx, float dy) {
+        this.mouseMode = enabled;
+        this.mouseDx   = dx;
+        this.mouseDy   = dy;
+    }
+
     public void setButton(int receiverCode, boolean pressed) {
         if (receiverCode <= 0) return;
         buttons.put(receiverCode, pressed);
@@ -185,8 +201,14 @@ public class UdpSender {
             j.put("steering", steeringDeg);
             j.put("throttle", throttle);
             j.put("brake", brake);
-            j.put("dx", 0);
-            j.put("dy", 0);
+            // Receiver requires the trailing-space key "clutch " (bug-for-bug match
+            // with the original C++ source). Only sent when the user enables the
+            // clutch slider so we don't overwrite vJoy RX otherwise.
+            if (sendClutch) j.put("clutch ", clutch);
+            // Receiver expects EITHER zaxis OR (dx, dy). We always send dx/dy
+            // (0 when not in mouse mode) so j.at("dx") never throws.
+            j.put("dx", mouseMode ? mouseDx : 0);
+            j.put("dy", mouseMode ? mouseDy : 0);
             j.put("phoneName", phoneName);
 
             Iterator<Map.Entry<Integer, Boolean>> it = buttons.entrySet().iterator();

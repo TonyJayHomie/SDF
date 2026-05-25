@@ -127,6 +127,11 @@ public class VibrationEngine {
         vibrateScaled(1.0f, 250);
     }
 
+    /** Short tick when a controller button is pressed (Haptic Feedback). */
+    public void vibrateButton() {
+        vibrateScaled(0.5f, 18);
+    }
+
     private void vibrateScaled(float intensity01, int durationMs) {
         if (vibrator == null || !vibrator.hasVibrator()) return;
         float scaled = clamp(intensity01 * settings.vibMaster, 0f, 1f);

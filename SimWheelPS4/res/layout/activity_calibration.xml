@@ -11,17 +11,15 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <TextView
-            style="@style/H1"
+        <TextView style="@style/H1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Calibration" />
 
-        <TextView
-            style="@style/Body"
+        <TextView style="@style/Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Tilt the phone / pull the triggers. Tune sliders to match real ranges."
+            android:text="Tilt the phone / spin the wheel / pull triggers. Tune sliders to match how you want it to feel."
             android:layout_marginTop="2dp" />
 
         <!-- Live steering visualization -->
@@ -49,12 +47,13 @@
                 android:gravity="center"
                 android:text="0.0°" />
 
+            <!-- Steering Range (matches receiver userRange exactly) -->
             <TextView
                 android:id="@+id/lbl_range_val"
                 style="@style/Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Steering range: 900°"
+                android:text="Steering range: 900°  (must match PC receiver's userRange)"
                 android:layout_marginTop="12dp" />
             <SeekBar
                 android:id="@+id/seek_range"
@@ -63,51 +62,62 @@
                 android:max="2430"
                 android:progress="810" />
 
+            <!-- Gyro Sensitivity 0..5 default 1   (matches original "gyro_sensitivity") -->
             <TextView
-                android:id="@+id/lbl_deadzone_val"
+                android:id="@+id/lbl_sens_val"
                 style="@style/Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Gyro deadzone: 2.0°" />
+                android:text="Gyro Sensitivity: 1.0  (Default 1, higher = more sensitive, max 5)"
+                android:layout_marginTop="8dp" />
             <SeekBar
-                android:id="@+id/seek_deadzone"
+                android:id="@+id/seek_sens"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:max="200"
-                android:progress="20" />
+                android:max="50"
+                android:progress="10" />
 
+            <!-- Gyro Anti-Shake 0..99 default 80 (matches original "gyro_filter") -->
             <TextView
-                android:id="@+id/lbl_tilt_val"
+                android:id="@+id/lbl_antishake_val"
                 style="@style/Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Tilt for full lock: 45°" />
+                android:text="Gyro Anti-Shake: 80  (0 = no filter, 99 = max smooth)" />
             <SeekBar
-                android:id="@+id/seek_tilt"
+                android:id="@+id/seek_antishake"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:max="175"
-                android:progress="40" />
+                android:max="99"
+                android:progress="80" />
+
+            <!-- Steering auto rotating to center in sec (0-10) -->
+            <TextView
+                android:id="@+id/lbl_center_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Steering center duration: off  (auto-return to center in seconds, 0 = off)" />
+            <SeekBar
+                android:id="@+id/seek_center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:progress="0" />
 
             <CheckBox
                 android:id="@+id/chk_invert"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@color/text"
-                android:text="Invert steering direction" />
+                android:text="Invert steering direction (Configure Axis Mode)" />
 
-            <TextView
-                android:id="@+id/lbl_curve_val"
-                style="@style/Body"
+            <CheckBox
+                android:id="@+id/chk_show_angle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Response curve exponent: 1.00" />
-            <SeekBar
-                android:id="@+id/seek_curve"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="200"
-                android:progress="100" />
+                android:textColor="@color/text"
+                android:text="Show steering angle (numeric readout)" />
 
             <Button
                 android:id="@+id/btn_center"
@@ -126,7 +136,7 @@
             <TextView style="@style/H2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Triggers (analog)" />
+                android:text="Throttle &amp; Brake Input" />
 
             <TextView style="@style/Body"
                 android:layout_width="wrap_content"
@@ -191,6 +201,39 @@
                 android:layout_height="wrap_content"
                 android:max="200"
                 android:progress="100" />
+
+            <CheckBox
+                android:id="@+id/chk_invert_throttle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text"
+                android:text="Invert throttle" />
+
+            <CheckBox
+                android:id="@+id/chk_invert_brake"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text"
+                android:text="Invert brake" />
+        </LinearLayout>
+
+        <!-- Clutch (optional) -->
+        <LinearLayout style="@style/Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <CheckBox
+                android:id="@+id/chk_clutch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text"
+                android:text="Enable Clutch Slider (sends \&quot;clutch \&quot; axis to receiver)" />
+
+            <TextView style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="When enabled, the slider on the main screen sends clutch values to the PC (vJoy RX axis)." />
         </LinearLayout>
 
         <Button
