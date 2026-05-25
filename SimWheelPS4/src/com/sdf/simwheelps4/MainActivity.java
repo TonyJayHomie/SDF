@@ -49,6 +49,16 @@ public class MainActivity extends Activity
     private LinearLayout clutchRow;
     private CheckBox chkHapticBtn, chkMouseMode;
 
+    // Live input visualization
+    private StickView stickL, stickR;
+    private TextView  valStickL, valStickR;
+    private LinearLayout clutchLiveRow, buttonsGrid;
+    private ProgressBar barClutchLive;
+    private TextView  valClutchLive;
+    private final java.util.LinkedHashMap<Integer, TextView> btnCells =
+            new java.util.LinkedHashMap<Integer, TextView>();
+    private int colCellOff, colCellOn, colCellText, colCellTextOn;
+
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     private float liveSteer    = 0f;
@@ -94,6 +104,21 @@ public class MainActivity extends Activity
         chkMouseMode     = (CheckBox) findViewById(R.id.chk_mouse_mode);
         seekMouseSens    = (SeekBar) findViewById(R.id.seek_mouse_sens);
         lblMouseSens     = (TextView) findViewById(R.id.lbl_mouse_sens);
+
+        // Live input visualization
+        stickL           = (StickView) findViewById(R.id.stick_l);
+        stickR           = (StickView) findViewById(R.id.stick_r);
+        valStickL        = (TextView)  findViewById(R.id.val_stick_l);
+        valStickR        = (TextView)  findViewById(R.id.val_stick_r);
+        clutchLiveRow    = (LinearLayout) findViewById(R.id.clutch_live_row);
+        barClutchLive    = (ProgressBar)  findViewById(R.id.bar_clutch_live);
+        valClutchLive    = (TextView)     findViewById(R.id.val_clutch_live);
+        buttonsGrid      = (LinearLayout) findViewById(R.id.buttons_grid);
+        colCellOff       = 0xFF1F2733;
+        colCellOn        = 0xFF21D07A;
+        colCellText      = 0xFFE6EDF3;
+        colCellTextOn    = 0xFF0E1116;
+        buildButtonGrid();
 
         editIp.setText(settings.pcIp);
 
@@ -249,7 +274,52 @@ public class MainActivity extends Activity
 
     private void refreshClutchVisibility() {
         clutchRow.setVisibility(settings.clutchEnabled ? View.VISIBLE : View.GONE);
+        clutchLiveRow.setVisibility(settings.clutchEnabled ? View.VISIBLE : View.GONE);
+        barClutchLive.setVisibility(settings.clutchEnabled ? View.VISIBLE : View.GONE);
         udp.updateClutch(settings.clutchEnabled, settings.clutchValue);
+    }
+
+    /** One TextView per PS4 button, 4 columns × N rows. Lights up green when pressed. */
+    private void buildButtonGrid() {
+        btnCells.clear();
+        buttonsGrid.removeAllViews();
+        ButtonMap m = this.map; // already loaded
+        LinearLayout row = null;
+        int col = 0;
+        int idx = 0;
+        for (ButtonMap.Entry e : m.all()) {
+            if (col == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                rp.topMargin = dp(4);
+                row.setLayoutParams(rp);
+                buttonsGrid.addView(row);
+            }
+            TextView cell = new TextView(this);
+            cell.setText(e.name);
+            cell.setTextColor(colCellText);
+            cell.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+            cell.setBackgroundColor(colCellOff);
+            cell.setGravity(android.view.Gravity.CENTER);
+            cell.setPadding(dp(6), dp(8), dp(6), dp(8));
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            if (col > 0) cp.leftMargin = dp(4);
+            cell.setLayoutParams(cp);
+            row.addView(cell);
+            btnCells.put(e.androidKeyCode, cell);
+            col++;
+            if (col >= 4) col = 0;
+            idx++;
+        }
+    }
+
+    private int dp(int v) {
+        return (int) android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());
     }
 
     private void updateVibMasterLabel() {
@@ -426,8 +496,25 @@ public class MainActivity extends Activity
         if (pressed && settings.hapticOnButton) vib.vibrateButton();
     }
 
-    @Override public void onLeftStick(float x, float y) {}
-    @Override public void onRightStick(float x, float y) {}
+    @Override
+    public void onLeftStick(final float x, final float y) {
+        ui.post(new Runnable() {
+            @Override public void run() {
+                stickL.set(x, y);
+                valStickL.setText(String.format("%+.2f / %+.2f", x, y));
+            }
+        });
+    }
+
+    @Override
+    public void onRightStick(final float x, final float y) {
+        ui.post(new Runnable() {
+            @Override public void run() {
+                stickR.set(x, y);
+                valStickR.setText(String.format("%+.2f / %+.2f", x, y));
+            }
+        });
+    }
 
     /* ---------- GyroSource.AvailabilityListener ---------- */
 
