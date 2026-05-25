@@ -161,8 +161,9 @@ public class GyroSource implements SensorEventListener {
         // Apply user-tapped center.
         rollDeg -= zeroOffsetDeg;
 
-        // Verbatim formula: steering = clamp(-range, +range, rollDeg * 10 * sensitivity)
-        float steering = rollDeg * 10f * sensitivity;
+        // 1:1 mapping — physical tilt degrees == reported steering degrees.
+        // 90° phone tilt = 90° steering value. Sensitivity slider scales from there.
+        float steering = rollDeg * sensitivity;
         if (steering >  rangeDeg) steering =  rangeDeg;
         if (steering < -rangeDeg) steering = -rangeDeg;
 
