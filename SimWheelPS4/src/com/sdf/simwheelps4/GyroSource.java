@@ -134,7 +134,7 @@ public class GyroSource implements SensorEventListener {
         SensorManager.getOrientation(rotationMatrix, orientation);
         float rollRad = orientation[2];
         double rollDeg = Math.toDegrees((double) rollRad);
-        double steering = Math.max(-900.0, Math.min(900.0, rollDeg * 10.0));
+        double steering = Math.max(-900.0, Math.min(900.0, rollDeg));
         if (listener != null) listener.onSteeringChanged((float) steering);
     }
     /* ===================================================================== */
