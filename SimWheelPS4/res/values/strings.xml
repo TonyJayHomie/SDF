@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SimWheel PS4</string>
+    <string name="title_connect">Connect</string>
+    <string name="title_drive">Drive</string>
+    <string name="title_calibrate">Calibrate</string>
+    <string name="title_mapping">Buttons</string>
+    <string name="title_vibration">Vibration</string>
+    <string name="hint_pc_ip">PC IP address (e.g. 192.168.1.10)</string>
+    <string name="btn_connect">Connect</string>
+    <string name="btn_discover">Discover PC</string>
+    <string name="btn_disconnect">Disconnect</string>
+    <string name="btn_calibrate">Open Calibration</string>
+    <string name="btn_mapping">Edit Button Mapping</string>
+    <string name="btn_save_profile">Save profile</string>
+    <string name="btn_load_profile">Load profile</string>
+    <string name="btn_reset">Reset</string>
+    <string name="btn_test_vibrate">Test Vibration</string>
+    <string name="lbl_status">Status:</string>
+    <string name="lbl_steering">Steering</string>
+    <string name="lbl_throttle">Throttle</string>
+    <string name="lbl_brake">Brake</string>
+    <string name="lbl_controller">Controller</string>
+    <string name="lbl_packets">Packets sent</string>
+    <string name="lbl_rate">Rate (Hz)</string>
+    <string name="lbl_range">Steering range</string>
+    <string name="lbl_deadzone">Gyro deadzone</string>
+    <string name="lbl_sensitivity">Sensitivity</string>
+    <string name="lbl_curve">Response curve</string>
+    <string name="lbl_trigger_min">Trigger min</string>
+    <string name="lbl_trigger_max">Trigger max</string>
+    <string name="lbl_vib_master">Master vibration intensity</string>
+    <string name="lbl_vib_collision">Collision threshold</string>
+    <string name="lbl_vib_rough">Rough surface threshold</string>
+    <string name="lbl_vib_revs">Engine rev sensitivity</string>
+    <string name="hint_no_controller">No PS4 controller paired. Pair one in Bluetooth settings, then return here.</string>
+    <string name="hint_pair_help">Hold PS + Share on the controller until the light bar flashes, then pair from Android Bluetooth settings.</string>
+    <string name="btn_open_bt">Open Bluetooth settings</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_streaming">Streaming</string>
+    <string name="status_searching">Searching for PC...</string>
+</resources>

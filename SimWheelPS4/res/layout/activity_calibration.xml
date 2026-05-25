@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            style="@style/H1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Calibration" />
+
+        <TextView
+            style="@style/Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tilt the phone / pull the triggers. Tune sliders to match real ranges."
+            android:layout_marginTop="2dp" />
+
+        <!-- Live steering visualization -->
+        <LinearLayout style="@style/Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView style="@style/H2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Live steering" />
+
+            <com.sdf.simwheelps4.WheelView
+                android:id="@+id/wheel"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_marginTop="6dp" />
+
+            <TextView
+                android:id="@+id/val_steer_deg"
+                style="@style/MonoLarge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="0.0°" />
+
+            <TextView
+                android:id="@+id/lbl_range_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Steering range: 900°"
+                android:layout_marginTop="12dp" />
+            <SeekBar
+                android:id="@+id/seek_range"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="2430"
+                android:progress="810" />
+
+            <TextView
+                android:id="@+id/lbl_deadzone_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Gyro deadzone: 2.0°" />
+            <SeekBar
+                android:id="@+id/seek_deadzone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="20" />
+
+            <TextView
+                android:id="@+id/lbl_sens_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sensitivity: 1.00x" />
+            <SeekBar
+                android:id="@+id/seek_sens"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="300"
+                android:progress="100" />
+
+            <TextView
+                android:id="@+id/lbl_curve_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Response curve exponent: 1.00" />
+            <SeekBar
+                android:id="@+id/seek_curve"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="100" />
+
+            <Button
+                android:id="@+id/btn_center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Center steering here" />
+        </LinearLayout>
+
+        <!-- Trigger visualization -->
+        <LinearLayout style="@style/Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView style="@style/H2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Triggers (analog)" />
+
+            <TextView style="@style/Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="L2 — Brake"
+                android:layout_marginTop="8dp" />
+            <ProgressBar
+                android:id="@+id/bar_l2"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="14dp"
+                android:max="1000" />
+
+            <TextView style="@style/Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="R2 — Throttle"
+                android:layout_marginTop="8dp" />
+            <ProgressBar
+                android:id="@+id/bar_r2"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="14dp"
+                android:max="1000" />
+
+            <TextView
+                android:id="@+id/lbl_trig_min_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Trigger deadzone (min): 0.00"
+                android:layout_marginTop="12dp" />
+            <SeekBar
+                android:id="@+id/seek_trig_min"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="500"
+                android:progress="0" />
+
+            <TextView
+                android:id="@+id/lbl_trig_max_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Trigger saturation (max): 1.00" />
+            <SeekBar
+                android:id="@+id/seek_trig_max"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="1000"
+                android:progress="1000" />
+
+            <TextView
+                android:id="@+id/lbl_trig_curve_val"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Trigger response curve: 1.00" />
+            <SeekBar
+                android:id="@+id/seek_trig_curve"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="100" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_reset_calib"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Reset to defaults" />
+
+    </LinearLayout>
+</ScrollView>
