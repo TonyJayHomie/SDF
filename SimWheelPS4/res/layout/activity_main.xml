@@ -270,7 +270,7 @@
                 android:id="@+id/bar_throttle"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="10dp"
+                android:layout_height="14dp"
                 android:max="1000"
                 android:progress="0" />
 
@@ -295,9 +295,102 @@
                 android:id="@+id/bar_brake"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="10dp"
+                android:layout_height="14dp"
                 android:max="1000"
                 android:progress="0" />
+
+            <!-- Clutch live bar (visible only when Clutch is enabled in Calibration) -->
+            <LinearLayout
+                android:id="@+id/clutch_live_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                android:layout_marginTop="12dp">
+                <TextView style="@style/Body"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Clutch" />
+                <TextView
+                    android:id="@+id/val_clutch_live"
+                    style="@style/MonoLarge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0%" />
+            </LinearLayout>
+            <ProgressBar
+                android:id="@+id/bar_clutch_live"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="14dp"
+                android:visibility="gone"
+                android:max="1000"
+                android:progress="0" />
+
+            <!-- Sticks (live L3 / R3 position) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="14dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <TextView style="@style/Body"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="L3" />
+                    <com.sdf.simwheelps4.StickView
+                        android:id="@+id/stick_l"
+                        android:layout_width="86dp"
+                        android:layout_height="86dp" />
+                    <TextView
+                        android:id="@+id/val_stick_l"
+                        style="@style/Body"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00 / 0.00" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <TextView style="@style/Body"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="R3" />
+                    <com.sdf.simwheelps4.StickView
+                        android:id="@+id/stick_r"
+                        android:layout_width="86dp"
+                        android:layout_height="86dp" />
+                    <TextView
+                        android:id="@+id/val_stick_r"
+                        style="@style/Body"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00 / 0.00" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Live button-press grid (programmatically populated) -->
+            <TextView style="@style/H2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Live button presses" />
+
+            <LinearLayout
+                android:id="@+id/buttons_grid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
 
             <LinearLayout
                 android:layout_width="match_parent"
