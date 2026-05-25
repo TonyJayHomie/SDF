@@ -16,6 +16,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -29,7 +31,7 @@ import java.util.Enumeration;
  * and keeps the gamepad input in one window so KeyEvent dispatch is simple.
  */
 public class MainActivity extends Activity
-        implements UdpSender.Listener, GyroSource.Listener, ControllerInput.Listener {
+        implements UdpSender.Listener, GyroSource.Listener, GyroSource.AvailabilityListener, ControllerInput.Listener {
 
     private Settings settings;
     private ButtonMap map;
@@ -44,6 +46,9 @@ public class MainActivity extends Activity
     private EditText editIp;
     private SeekBar  seekVibMaster;
     private TextView lblVibMaster;
+    private RadioGroup grpGyro;
+    private RadioButton rbGyroPhone, rbGyroController;
+    private TextView gyroHint;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
 
@@ -91,6 +96,8 @@ public class MainActivity extends Activity
         gyro.setDeadzoneDeg(settings.gyroDeadzoneDeg);
         gyro.setSensitivity(settings.gyroSensitivity);
         gyro.setCurveExp(settings.steeringCurve);
+        gyro.setSource(settings.gyroSource);
+        gyro.setAvailabilityListener(this);
 
         ctlIn = new ControllerInput(this, map, settings);
 
@@ -124,6 +131,30 @@ public class MainActivity extends Activity
         });
         findViewById(R.id.btn_test_vibrate).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { vib.vibrateTest(); }
+        });
+
+        grpGyro          = (RadioGroup) findViewById(R.id.grp_gyro_source);
+        rbGyroPhone      = (RadioButton) findViewById(R.id.rb_gyro_phone);
+        rbGyroController = (RadioButton) findViewById(R.id.rb_gyro_controller);
+        gyroHint         = (TextView) findViewById(R.id.gyro_source_hint);
+        if (GyroSource.SRC_CONTROLLER.equals(settings.gyroSource)) {
+            rbGyroController.setChecked(true);
+        } else {
+            rbGyroPhone.setChecked(true);
+        }
+        grpGyro.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(RadioGroup g, int checkedId) {
+                String src = (checkedId == R.id.rb_gyro_controller)
+                        ? GyroSource.SRC_CONTROLLER : GyroSource.SRC_PHONE;
+                settings.gyroSource = src;
+                settings.save();
+                gyro.setSource(src);
+                if (GyroSource.SRC_CONTROLLER.equals(src) && !gyro.isControllerGyroAvailable()) {
+                    Toast.makeText(MainActivity.this,
+                        "No controller gyro visible to Android yet — falling back to phone gyro. Make sure the PS4 controller is paired and active.",
+                        Toast.LENGTH_LONG).show();
+                }
+            }
         });
 
         seekVibMaster.setProgress(Math.round(settings.vibMaster * 100f));
@@ -294,6 +325,26 @@ public class MainActivity extends Activity
 
     @Override public void onLeftStick(float x, float y) {}
     @Override public void onRightStick(float x, float y) {}
+
+    /* ---------- GyroSource.AvailabilityListener ---------- */
+
+    @Override
+    public void onControllerGyroAvailable(final boolean available, final String name) {
+        ui.post(new Runnable() {
+            @Override public void run() {
+                rbGyroController.setEnabled(available);
+                if (available) {
+                    gyroHint.setText("Controller IMU detected: " + name
+                            + ". Tap \"Controller gyro\" to steer with the DualShock.");
+                } else {
+                    gyroHint.setText("Controller gyro: requires PS4/PS5 controller paired and Android 7.0+ (the system must advertise the controller IMU as a dynamic sensor).");
+                    if (rbGyroController.isChecked()) {
+                        rbGyroPhone.setChecked(true);
+                    }
+                }
+            }
+        });
+    }
 
     /* ---------- gamepad input dispatch ---------- */
 

@@ -107,6 +107,41 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/btn_open_bt" />
+
+            <TextView style="@style/H2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Steering source" />
+
+            <RadioGroup
+                android:id="@+id/grp_gyro_source"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <RadioButton
+                    android:id="@+id/rb_gyro_phone"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text"
+                    android:checked="true"
+                    android:text="Phone gyro" />
+                <RadioButton
+                    android:id="@+id/rb_gyro_controller"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text"
+                    android:text="Controller gyro" />
+            </RadioGroup>
+
+            <TextView
+                android:id="@+id/gyro_source_hint"
+                style="@style/Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Controller gyro: requires PS4/PS5 controller paired and Android 7.0+ (the system must advertise the controller IMU as a dynamic sensor)." />
         </LinearLayout>
 
         <!-- Live telemetry card -->

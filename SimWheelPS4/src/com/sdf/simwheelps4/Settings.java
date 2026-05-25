@@ -22,6 +22,7 @@ public class Settings {
     public float gyroDeadzoneDeg  = 2.0f;
     public float gyroSensitivity  = 1.0f;
     public float steeringCurve    = 1.0f;   // exponent
+    public String gyroSource      = "phone"; // "phone" or "controller"
 
     // Triggers
     public float triggerMin       = 0.0f;
@@ -52,6 +53,7 @@ public class Settings {
         triggerMin        = sp.getFloat ("triggerMin", triggerMin);
         triggerMax        = sp.getFloat ("triggerMax", triggerMax);
         triggerCurve      = sp.getFloat ("triggerCurve", triggerCurve);
+        gyroSource        = sp.getString("gyroSource", gyroSource);
         vibMaster         = sp.getFloat ("vibMaster", vibMaster);
         vibCollisionThr   = sp.getFloat ("vibCollisionThr", vibCollisionThr);
         vibRoughThr       = sp.getFloat ("vibRoughThr", vibRoughThr);
@@ -70,6 +72,7 @@ public class Settings {
             .putFloat ("triggerMin", triggerMin)
             .putFloat ("triggerMax", triggerMax)
             .putFloat ("triggerCurve", triggerCurve)
+            .putString("gyroSource", gyroSource)
             .putFloat ("vibMaster", vibMaster)
             .putFloat ("vibCollisionThr", vibCollisionThr)
             .putFloat ("vibRoughThr", vibRoughThr)
