@@ -1,3 +1,4 @@
 build/
 *.apk
 *.keystore
+!SimWheelPS4.apk
