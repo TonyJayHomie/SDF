@@ -93,9 +93,10 @@ public class MainActivity extends Activity
         udp = new UdpSender(phoneName, this);
         gyro = new GyroSource(this, this);
         gyro.setRangeDeg(settings.steeringRangeDeg);
+        gyro.setPhysicalTiltDeg(settings.physicalTiltRangeDeg);
         gyro.setDeadzoneDeg(settings.gyroDeadzoneDeg);
-        gyro.setSensitivity(settings.gyroSensitivity);
         gyro.setCurveExp(settings.steeringCurve);
+        gyro.setInvert(settings.invertSteering);
         gyro.setSource(settings.gyroSource);
         gyro.setAvailabilityListener(this);
 
@@ -227,8 +228,10 @@ public class MainActivity extends Activity
         settings.pcIp = ip;
         settings.save();
         udp.setTarget(ip, settings.pcPort);
+        gyro.recenter(); // capture current phone pose as center on every connect
         udp.startStreaming();
-        statusLine.setText("Streaming → " + ip + ":" + settings.pcPort);
+        statusLine.setText("Streaming → " + ip + ":" + settings.pcPort
+                + " (first connect: type 'y' in the PC console to allow this device)");
     }
 
     /** Best-effort: derive the broadcast for the current Wi-Fi subnet. */
@@ -257,6 +260,7 @@ public class MainActivity extends Activity
                 settings.pcIp = pcIp;
                 settings.save();
                 udp.setTarget(pcIp, settings.pcPort);
+                gyro.recenter();
                 udp.startStreaming();
                 statusLine.setText("Streaming → " + pcName + " (" + pcIp + ", " + connection + ")");
             }

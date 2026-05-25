@@ -45,10 +45,11 @@ public class GyroSource implements SensorEventListener {
     private String source = SRC_PHONE;
 
     // Calibration / shape
-    private float rangeDeg     = 900f;
-    private float deadzoneDeg  = 2.0f;
-    private float sensitivity  = 1.0f;
-    private float curveExp     = 1.0f;
+    private float rangeDeg          = 900f;   // steering output range (matches receiver "userRange")
+    private float physicalTiltDeg   = 45f;    // physical tilt that maps to full lock
+    private float deadzoneDeg       = 2.0f;
+    private float curveExp          = 1.0f;
+    private boolean invert          = false;
 
     // State for rotation-vector path
     private float centerYawDeg = Float.NaN;
@@ -84,10 +85,11 @@ public class GyroSource implements SensorEventListener {
         reportAvailability();
     }
 
-    public void setRangeDeg(float v)    { rangeDeg    = Math.max(45f, v); }
-    public void setDeadzoneDeg(float v) { deadzoneDeg = Math.max(0f, v); }
-    public void setSensitivity(float v) { sensitivity = Math.max(0.05f, v); }
-    public void setCurveExp(float v)    { curveExp    = Math.max(0.2f, Math.min(3.0f, v)); }
+    public void setRangeDeg(float v)         { rangeDeg        = Math.max(45f, v); }
+    public void setPhysicalTiltDeg(float v)  { physicalTiltDeg = Math.max(5f, Math.min(180f, v)); }
+    public void setDeadzoneDeg(float v)      { deadzoneDeg     = Math.max(0f, v); }
+    public void setCurveExp(float v)         { curveExp        = Math.max(0.2f, Math.min(3.0f, v)); }
+    public void setInvert(boolean v)         { invert          = v; }
 
     public float getLastReported() { return lastReported; }
     public float getRangeDeg()     { return rangeDeg; }
@@ -221,19 +223,32 @@ public class GyroSource implements SensorEventListener {
         }
     }
 
+    /**
+     * Map a measured physical tilt (deg) to a steering value in deg.
+     *
+     *   physicalTiltDeg is the tilt at which steering should hit full lock.
+     *   rangeDeg        is the steering value at full lock (e.g. 900 for 900° wheel).
+     *
+     * So if physicalTiltDeg=45 and rangeDeg=900:
+     *   tilt = 0   →  steering = 0
+     *   tilt = 22.5 → steering = 450 (half lock)
+     *   tilt = 45  →  steering = 900 (full lock)
+     */
     private float shape(float deltaDeg) {
         float a = deltaDeg;
         float dz = deadzoneDeg;
         if (Math.abs(a) <= dz) return 0f;
+        // re-center past the deadzone so the response is smooth at the edge
         a = a - Math.signum(a) * dz;
-        float sign = Math.signum(a);
-        float mag  = Math.abs(a) * sensitivity;
+        float effRange = Math.max(1f, physicalTiltDeg - dz);
+        float norm = a / effRange;
+        if (norm >  1f) norm =  1f;
+        if (norm < -1f) norm = -1f;
         if (Math.abs(curveExp - 1f) > 0.001f) {
-            float norm = Math.min(1f, mag / rangeDeg);
-            mag = (float) Math.pow(norm, curveExp) * rangeDeg;
+            norm = Math.signum(norm) * (float) Math.pow(Math.abs(norm), curveExp);
         }
-        if (mag > rangeDeg) mag = rangeDeg;
-        return sign * mag;
+        if (invert) norm = -norm;
+        return norm * rangeDeg;
     }
 
     private static float wrap180(float a) {

@@ -77,17 +77,24 @@
                 android:progress="20" />
 
             <TextView
-                android:id="@+id/lbl_sens_val"
+                android:id="@+id/lbl_tilt_val"
                 style="@style/Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Sensitivity: 1.00x" />
+                android:text="Tilt for full lock: 45°" />
             <SeekBar
-                android:id="@+id/seek_sens"
+                android:id="@+id/seek_tilt"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:max="300"
-                android:progress="100" />
+                android:max="175"
+                android:progress="40" />
+
+            <CheckBox
+                android:id="@+id/chk_invert"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text"
+                android:text="Invert steering direction" />
 
             <TextView
                 android:id="@+id/lbl_curve_val"

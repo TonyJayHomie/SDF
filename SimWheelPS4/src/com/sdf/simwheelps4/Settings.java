@@ -18,11 +18,13 @@ public class Settings {
     public int    pcPort = 4567;
 
     // Steering
-    public float steeringRangeDeg = 900f;   // half-range each side mapped to receiver "userRange"
-    public float gyroDeadzoneDeg  = 2.0f;
-    public float gyroSensitivity  = 1.0f;
-    public float steeringCurve    = 1.0f;   // exponent
-    public String gyroSource      = "phone"; // "phone" or "controller"
+    public float steeringRangeDeg     = 900f;  // half-range each side mapped to receiver "userRange"
+    public float physicalTiltRangeDeg = 45f;   // physical tilt at which steering hits full lock
+    public float gyroDeadzoneDeg      = 2.0f;
+    public float gyroSensitivity      = 1.0f;  // legacy, kept for profile compatibility
+    public float steeringCurve        = 1.0f;  // exponent
+    public boolean invertSteering     = false;
+    public String  gyroSource         = "phone"; // "phone" or "controller"
 
     // Triggers
     public float triggerMin       = 0.0f;
@@ -46,10 +48,12 @@ public class Settings {
     public void load() {
         pcIp              = sp.getString("pcIp", pcIp);
         pcPort            = sp.getInt   ("pcPort", pcPort);
-        steeringRangeDeg  = sp.getFloat ("steeringRangeDeg", steeringRangeDeg);
-        gyroDeadzoneDeg   = sp.getFloat ("gyroDeadzoneDeg", gyroDeadzoneDeg);
-        gyroSensitivity   = sp.getFloat ("gyroSensitivity", gyroSensitivity);
-        steeringCurve     = sp.getFloat ("steeringCurve", steeringCurve);
+        steeringRangeDeg     = sp.getFloat  ("steeringRangeDeg", steeringRangeDeg);
+        physicalTiltRangeDeg = sp.getFloat  ("physicalTiltRangeDeg", physicalTiltRangeDeg);
+        gyroDeadzoneDeg      = sp.getFloat  ("gyroDeadzoneDeg", gyroDeadzoneDeg);
+        gyroSensitivity      = sp.getFloat  ("gyroSensitivity", gyroSensitivity);
+        steeringCurve        = sp.getFloat  ("steeringCurve", steeringCurve);
+        invertSteering       = sp.getBoolean("invertSteering", invertSteering);
         triggerMin        = sp.getFloat ("triggerMin", triggerMin);
         triggerMax        = sp.getFloat ("triggerMax", triggerMax);
         triggerCurve      = sp.getFloat ("triggerCurve", triggerCurve);
@@ -65,10 +69,12 @@ public class Settings {
         sp.edit()
             .putString("pcIp", pcIp)
             .putInt   ("pcPort", pcPort)
-            .putFloat ("steeringRangeDeg", steeringRangeDeg)
-            .putFloat ("gyroDeadzoneDeg", gyroDeadzoneDeg)
-            .putFloat ("gyroSensitivity", gyroSensitivity)
-            .putFloat ("steeringCurve", steeringCurve)
+            .putFloat   ("steeringRangeDeg", steeringRangeDeg)
+            .putFloat   ("physicalTiltRangeDeg", physicalTiltRangeDeg)
+            .putFloat   ("gyroDeadzoneDeg", gyroDeadzoneDeg)
+            .putFloat   ("gyroSensitivity", gyroSensitivity)
+            .putFloat   ("steeringCurve", steeringCurve)
+            .putBoolean ("invertSteering", invertSteering)
             .putFloat ("triggerMin", triggerMin)
             .putFloat ("triggerMax", triggerMax)
             .putFloat ("triggerCurve", triggerCurve)
