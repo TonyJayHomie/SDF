@@ -1,0 +1,26 @@
+--- /dev/fd/63	2026-05-25 10:22:05.478642377 +0000
++++ /tmp/xapk_extract/base_decoded/smali/w1/c.smali	2026-05-25 10:18:18.450058118 +0000
+@@ -212,6 +212,12 @@
+     .line 5
+     iget-object v0, p0, Lw1/c;->a:Landroid/hardware/SensorManager;
+ 
++    iget v1, p0, Lw1/c;->b:I
++
++    invoke-static {v0, v1}, Lcom/sdf/ps4/Ps4Sensor;->pick(Landroid/hardware/SensorManager;I)Landroid/hardware/SensorManager;
++
++    move-result-object v0
++
+     .line 6
+     .line 7
+     iget-object v1, p0, Lw1/c;->c:Lw1/b;
+@@ -310,6 +316,10 @@
+ 
+     .line 4
+     .line 5
++    invoke-static {v0, v1}, Lcom/sdf/ps4/Ps4Sensor;->pick(Landroid/hardware/SensorManager;I)Landroid/hardware/SensorManager;
++
++    move-result-object v0
++
+     invoke-virtual {v0, v1}, Landroid/hardware/SensorManager;->getDefaultSensor(I)Landroid/hardware/Sensor;
+ 
+     .line 6

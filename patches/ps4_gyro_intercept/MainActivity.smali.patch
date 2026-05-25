@@ -1,0 +1,18 @@
+--- /tmp/orig_dec/smali/com/ik/simwheel/MainActivity.smali	2026-05-25 10:22:09.150539596 +0000
++++ /tmp/xapk_extract/base_decoded/smali/com/ik/simwheel/MainActivity.smali	2026-05-25 10:18:56.270059788 +0000
+@@ -90,3 +90,15 @@
+     .line 78
+     .line 79
+ .end method
++
++
++# virtual methods
++.method public onCreate(Landroid/os/Bundle;)V
++    .locals 0
++
++    invoke-super {p0, p1}, Ly1/c;->onCreate(Landroid/os/Bundle;)V
++
++    invoke-static {p0}, Lcom/sdf/ps4/Ps4Sensor;->init(Landroid/content/Context;)V
++
++    return-void
++.end method
