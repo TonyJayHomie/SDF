@@ -90,4 +90,32 @@ sign_one "$WORK/xapk/config.xxhdpi.apk"       config.xxhdpi.apk
     config.arm64_v8a.apk config.armeabi_v7a.apk \
     config.en.apk config.fr.apk config.xxhdpi.apk)
 
-echo "Built: $XAPK_OUT"
+# Also build a single fat APK (arm64-v8a only) for the common case of
+# users who don't have an XAPK installer — installs by tapping the file.
+FATBASE="$WORK/decoded_fat"
+cp -a "$WORK/decoded" "$FATBASE"
+# Drop the requiredSplitTypes attribute so Android doesn't refuse to install
+# without sibling splits.
+python3 - "$FATBASE/AndroidManifest.xml" <<'PY'
+import sys, pathlib, re
+p = pathlib.Path(sys.argv[1])
+txt = p.read_text()
+txt = re.sub(r' android:requiredSplitTypes="[^"]*"', '', txt)
+txt = re.sub(r' android:splitTypes="[^"]*"',         '', txt)
+p.write_text(txt)
+PY
+apktool b --use-aapt2 -q -f -o "$WORK/fat_base.apk" "$FATBASE"
+# Inject arm64 libs from the split
+(cd "$WORK/xapk" && rm -rf libdump && mkdir libdump && unzip -q -o config.arm64_v8a.apk -d libdump && \
+ cd libdump && zip -X -q -r "$WORK/fat_base.apk" lib/)
+# Inject xxhdpi density resources from the split
+(cd "$WORK/xapk" && rm -rf hidpidump && mkdir hidpidump && unzip -q -o config.xxhdpi.apk -d hidpidump && \
+ cd hidpidump && zip -X -q -r "$WORK/fat_base.apk" res/ 2>/dev/null || true)
+zipalign -p -f 4 "$WORK/fat_base.apk" "$WORK/fat_aligned.apk"
+APK_OUT="${XAPK_OUT%.xapk}.apk"
+apksigner sign --ks "$KS" --ks-pass pass:android --key-pass pass:android \
+  --v1-signing-enabled true --v2-signing-enabled true \
+  --out "$APK_OUT" "$WORK/fat_aligned.apk" >/dev/null
+
+echo "Built XAPK:  $XAPK_OUT"
+echo "Built APK:   $APK_OUT  (arm64-v8a only, taps to install)"
