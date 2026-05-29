@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_dark">#1a1a2e</color>
+    <color name="bg_card">#16213e</color>
+    <color name="accent">#e94560</color>
+    <color name="green">#00d9a3</color>
+    <color name="white">#ffffff</color>
+    <color name="grey">#aaaacc</color>
+    <color name="throttle_color">#00d9a3</color>
+    <color name="brake_color">#e94560</color>
+    <color name="steering_color">#4fa3e0</color>
+</resources>

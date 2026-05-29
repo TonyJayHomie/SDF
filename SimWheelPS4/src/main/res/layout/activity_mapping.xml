@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_dark"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:text="Button Mapping"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Profile row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <Spinner
+            android:id="@+id/spinner_profile"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:background="#16213e"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_save_profile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            style="@style/ButtonStyle"
+            android:textSize="12sp"
+            android:text="Save" />
+
+        <Button
+            android:id="@+id/btn_new_profile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="@style/ButtonStyle"
+            android:textSize="12sp"
+            android:background="#16213e"
+            android:text="New" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/grey"
+        android:textSize="11sp"
+        android:text="Tap a button row to remap it. Press the PS4 button to detect."
+        android:layout_marginBottom="8dp" />
+
+    <ListView
+        android:id="@+id/lv_mappings"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="#16213e"
+        android:dividerHeight="1dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/btn_reset_mappings"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            style="@style/ButtonStyle"
+            android:background="#16213e"
+            android:text="Reset Defaults" />
+
+        <Button
+            android:id="@+id/btn_back_mapping"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            style="@style/ButtonStyle"
+            android:background="#16213e"
+            android:text="Back" />
+
+    </LinearLayout>
+</LinearLayout>

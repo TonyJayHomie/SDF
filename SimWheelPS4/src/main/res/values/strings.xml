@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SimWheel PS4</string>
+    <string name="connect">Connect to PC</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="calibrate">Calibration</string>
+    <string name="mapping">Button Mapping</string>
+    <string name="status_idle">Not Connected — Pair PS4 controller via Bluetooth first</string>
+    <string name="status_searching">Searching for PC on WiFi…</string>
+    <string name="status_connected">Connected</string>
+    <string name="enter_ip">Enter PC IP address</string>
+    <string name="ip_hint">192.168.x.x</string>
+    <string name="vibration">Vibration</string>
+    <string name="save">Save Profile</string>
+    <string name="load">Load Profile</string>
+    <string name="reset_center">Re-center Wheel</string>
+    <string name="steering_deg">Steering: %1$.1f°</string>
+    <string name="throttle_pct">Throttle: %1$.0f%%</string>
+    <string name="brake_pct">Brake: %1$.0f%%</string>
+    <string name="no_controller">No PS4 controller connected</string>
+    <string name="controller_connected">PS4 Controller: Connected</string>
+</resources>
