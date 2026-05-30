@@ -13,44 +13,54 @@ The file named `READ` is a **chat transcript** from a previous Claude session. I
 
 There is **no Flutter source code** in this repo. The Dart logic is compiled AOT into `libapp.so` inside the APK splits. All Android modifications must work around this constraint.
 
+## Plugin Java Sources
+
+The three Java plugin classes live in `plugin_src/com/ik/simwheel/sim/`:
+- `SimApp.java` — `Application` subclass; wraps `Window.Callback` to intercept gamepad events; injects a ⚙ gear button into `android.R.id.content` on every Activity resume
+- `SimBridge.java` — PS4 input handler (gyro steering, analog triggers, button mapping), UDP relay to PC, 6-month promo bypass
+- `SettingsActivity.java` — full-screen settings UI: live axis bars, deadzone/curve sliders, vibration controls, 16-button vJoy remap spinners, profile save/load
+
+These are the sources of truth. When rebuilding, compile these → DEX → smali → copy into `build_work/base_dec/smali/com/ik/simwheel/sim/`.
+
 ## Build Environment (This Container)
 
 Available: **Java 21** (OpenJDK), Python 3.11.
 
 **Do NOT use dl.google.com** — it returns 403 host_not_allowed in this environment.
 
-Install the Android build toolchain via apt (works offline in this container):
+Install the Android build toolchain via apt:
 
 ```bash
 sudo apt-get update -qq
 DEBIAN_FRONTEND=noninteractive sudo apt-get install -qq -y \
     default-jdk-headless apktool android-sdk-build-tools
-
-# android.jar (needed as javac bootclasspath)
-mkdir -p /tmp/android-sdk/platforms/android-34
-curl -L https://github.com/Sable/android-platforms/raw/master/android-34/android.jar \
-     -o /tmp/android-sdk/platforms/android-34/android.jar
-
-# r8/d8 (DEX compiler, replaces missing d8 in apt build-tools)
-curl -L https://storage.googleapis.com/r8-releases/raw/8.2.47/r8.jar -o /tmp/r8.jar
-
-# baksmali (dex → smali disassembler)
-curl -L https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.5.2.jar -o /tmp/baksmali.jar
 ```
+
+**Pre-downloaded JARs** (already committed in `build_work/sdk/` — do NOT re-download):
+- `build_work/sdk/android.jar` — Android 34 bootclasspath
+- `build_work/sdk/r8.jar` — D8/R8 DEX compiler
+- `build_work/sdk/baksmali.jar` — DEX → smali disassembler
 
 Tool paths after apt install:
 - `apktool` → `/usr/bin/apktool`
 - `aapt2` / `zipalign` / `apksigner` → `/usr/lib/android-sdk/build-tools/debian/` (also on PATH)
 - `javac` → `/usr/bin/javac`
 
-Compile Java plugin and convert to DEX:
+Compile Java plugin and convert to DEX (run from `build_work/`):
 ```bash
-javac -source 1.8 -target 1.8 -bootclasspath /tmp/android-sdk/platforms/android-34/android.jar \
-      -d build/classes src/**/*.java
-java -cp /tmp/r8.jar com.android.tools.r8.D8 --release --min-api 21 \
-     --lib /tmp/android-sdk/platforms/android-34/android.jar \
-     --output build/dex $(find build/classes -name '*.class')
-java -jar /tmp/baksmali.jar d build/dex/classes.dex -o build/smali_out
+SDK=build_work/sdk/android.jar
+mkdir -p build_work/build/classes
+javac -source 1.8 -target 1.8 -bootclasspath $SDK \
+      -d build_work/build/classes \
+      $(find plugin_src -name '*.java')
+java -cp build_work/sdk/r8.jar com.android.tools.r8.D8 --release --min-api 21 \
+     --lib $SDK \
+     --output build_work/build/dex \
+     $(find build_work/build/classes -name '*.class')
+java -jar build_work/sdk/baksmali.jar d build_work/build/dex/classes.dex \
+     -o build_work/build/smali_out
+cp -r build_work/build/smali_out/com/ik/simwheel/sim \
+      build_work/base_dec/smali/com/ik/simwheel/sim
 ```
 
 **Important Java source constraints** (required to compile against android.jar):
@@ -212,16 +222,34 @@ vJoy axis mappings:
 
 At startup the receiver prompts for steering range (90–2520°, default 900). This must match the app's configured range.
 
-## Signing APKs
+## Compose + Sign (Full Build Pipeline)
 
-After apktool repack, sign with:
+After patching `build_work/base_dec/` and injecting smali:
+
 ```bash
-apktool b apk_decompiled/ -o unsigned.apk
-zipalign -v 4 unsigned.apk aligned.apk
-apksigner sign --ks keystore.jks --out signed.apk aligned.apk
+# 1. Build carrier APK from patched base_dec
+apktool b -q --use-aapt2 build_work/base_dec -o build_work/build/carrier.apk
+
+# 2. Compose universal APK (merges arm64+armv7 libs, bundles splits as assets, pads to ≥99MB)
+python3 build_work/merge.py
+# Output: build_work/build/universal_unsigned.apk
+
+# 3. Align and sign
+zipalign -p -f 4 build_work/build/universal_unsigned.apk build_work/build/aligned.apk
+apksigner sign \
+  --ks build_work/build/sim_new.ks \
+  --ks-key-alias sim \
+  --ks-pass pass:simwheel123 \
+  --key-pass pass:simwheel123 \
+  --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+  --out SimWheel_5.2.2_FINAL_vN.apk \
+  build_work/build/aligned.apk
 ```
 
-For a debug/test keystore:
-```bash
-keytool -genkeypair -v -keystore debug.jks -alias debug -keyalg RSA -keysize 2048 -validity 10000
-```
+**Keystore:** `build_work/build/sim_new.ks` — alias `sim`, password `simwheel123`.
+
+## Paywall Bypass (Smali-Level)
+
+`flutter.is_premium` is read by Dart via the Flutter SharedPreferences plugin bridge at `build_work/base_dec/smali/Q1/a.smali`. The method `b(Ljava/lang/String;Ljava/util/List;)Ljava/util/HashMap;` builds and returns a HashMap of all prefs to Dart. Inject `flutter.is_premium = Boolean.TRUE` into that map before the `return-object v1` at the end of method `b` to hard-bake premium=true at the smali level with no external code.
+
+The `SimBridge.applyPromo()` approach (writing to SharedPreferences from Java) is a backup; the smali patch is the primary and most reliable route since it intercepts the read path directly.
