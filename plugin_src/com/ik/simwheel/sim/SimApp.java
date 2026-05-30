@@ -2,11 +2,17 @@ package com.ik.simwheel.sim;
 
 import android.app.Activity;
 import android.app.Application;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.Window;
+import android.widget.Button;
+import android.widget.FrameLayout;
 
 public class SimApp extends Application {
 
@@ -29,15 +35,52 @@ public class SimApp extends Application {
             }
         }
 
+        private static void injectSettingsButton(final Activity activity) {
+            if (activity instanceof SettingsActivity) return;
+            android.view.ViewGroup content = (android.view.ViewGroup) activity.findViewById(android.R.id.content);
+            if (content == null) return;
+            if (content.findViewWithTag("sim_settings_btn") != null) return;
+
+            Button btn = new Button(activity);
+            btn.setTag("sim_settings_btn");
+            btn.setText("⚙");
+            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+            btn.setBackgroundColor(Color.argb(220, 10, 10, 10));
+            btn.setTextColor(Color.WHITE);
+            btn.setPadding(0, 0, 0, 0);
+
+            int size = dp(activity, 52);
+            int margin = dp(activity, 14);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size, size);
+            lp.gravity = Gravity.BOTTOM | Gravity.END;
+            lp.setMargins(0, 0, margin, margin);
+            btn.setLayoutParams(lp);
+
+            btn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    SimBridge.openSettings();
+                }
+            });
+
+            content.addView(btn);
+        }
+
+        private static int dp(Activity activity, int value) {
+            return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value,
+                activity.getResources().getDisplayMetrics());
+        }
+
         public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
             wrapCallback(activity);
         }
 
         public void onActivityStarted(Activity activity) {}
+
         public void onActivityResumed(Activity activity) {
-            // Re-wrap in case Flutter replaced the callback after onCreate
             wrapCallback(activity);
+            injectSettingsButton(activity);
         }
+
         public void onActivityPaused(Activity activity) {}
         public void onActivityStopped(Activity activity) {}
         public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
@@ -53,8 +96,6 @@ public class SimApp extends Application {
 
         public boolean dispatchKeyEvent(KeyEvent event) {
             SimBridge.onKey(event);
-            // Consume gamepad keys — prevents Flutter from using D-pad/buttons
-            // for focus navigation and scrolling (source of UI glitches)
             int src = event.getSource();
             if ((src & (InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_JOYSTICK)) != 0) {
                 return true;
@@ -64,16 +105,12 @@ public class SimApp extends Application {
 
         public boolean dispatchGenericMotionEvent(MotionEvent event) {
             SimBridge.onMotion(event);
-            // Consume joystick/gamepad motion events — prevents Flutter from
-            // treating axis movements as scroll or accessibility navigation
             int src = event.getSource();
             if ((src & (InputDevice.SOURCE_JOYSTICK | InputDevice.SOURCE_GAMEPAD)) != 0) {
                 return true;
             }
             return original.dispatchGenericMotionEvent(event);
         }
-
-        // All other Window.Callback methods delegate to original
 
         public boolean dispatchKeyShortcutEvent(KeyEvent event) {
             return original.dispatchKeyShortcutEvent(event);

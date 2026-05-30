@@ -80,15 +80,6 @@ public class SimBridge {
 
         startUdpThread();
         applyPromo(ctx);
-
-        // Open PS4 settings screen automatically every time the app launches.
-        // This makes our settings panel part of the app UI — not an overlay,
-        // not a notification. User presses "Back to Main App" when done.
-        mainHandler.postDelayed(new Runnable() {
-            public void run() {
-                openSettings();
-            }
-        }, 2500);
     }
 
     public static void openSettings() {
