@@ -50,6 +50,9 @@ public class SimBridge {
     // Debug axis readout (updated by onMotion, displayed in SettingsActivity)
     public static volatile String debugAxes = "";
 
+    // Held strongly to prevent GC of the promo guard listener
+    private static SharedPreferences.OnSharedPreferenceChangeListener promoGuard;
+
     // UDP
     private static String phoneName = "SimWheelPS4";
     private static String pcAddress = null;
@@ -62,7 +65,6 @@ public class SimBridge {
         mainHandler = new Handler(Looper.getMainLooper());
         vibrator = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
 
-        // Load preferences
         SharedPreferences prefs = ctx.getSharedPreferences("SimWheelPlugin", Context.MODE_PRIVATE);
         triggerDeadzone = prefs.getFloat("triggerDeadzone", 0.05f);
         triggerCurve = prefs.getFloat("triggerCurve", 1.0f);
@@ -70,31 +72,63 @@ public class SimBridge {
         steeringSensitivity = prefs.getFloat("steeringSensitivity", 1.0f);
         maxDegrees = prefs.getFloat("maxDegrees", 900f);
 
-        // Load button map
         SharedPreferences profilePrefs = ctx.getSharedPreferences("SimWheelProfiles", Context.MODE_PRIVATE);
         String activeProfile = profilePrefs.getString("activeProfile", "default");
         for (int i = 0; i < 16; i++) {
             buttonMap[i] = profilePrefs.getInt(activeProfile + "_btn_" + i, i + 1);
         }
 
-        // Start UDP thread
         startUdpThread();
-
-        // Apply promo
         applyPromo(ctx);
+
+        // Open PS4 settings screen automatically every time the app launches.
+        // This makes our settings panel part of the app UI — not an overlay,
+        // not a notification. User presses "Back to Main App" when done.
+        mainHandler.postDelayed(new Runnable() {
+            public void run() {
+                openSettings();
+            }
+        }, 2500);
     }
 
-    private static void applyPromo(Context appCtx) {
-        SharedPreferences p = appCtx.getSharedPreferences("SimWheelPromo", Context.MODE_PRIVATE);
+    public static void openSettings() {
+        if (ctx == null) return;
+        Intent si = new Intent();
+        si.setClassName(ctx.getPackageName(), "com.ik.simwheel.sim.SettingsActivity");
+        si.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        ctx.startActivity(si);
+    }
+
+    private static void applyPromo(final Context appCtx) {
+        final SharedPreferences p = appCtx.getSharedPreferences("SimWheelPromo", Context.MODE_PRIVATE);
         long t = p.getLong("promo_install_time", 0L);
         if (t == 0L) {
             t = System.currentTimeMillis();
             p.edit().putLong("promo_install_time", t).apply();
         }
-        long sixMonths = 6L * 30L * 24L * 3600L * 1000L;
-        boolean active = (System.currentTimeMillis() - t) < sixMonths;
-        SharedPreferences fp = appCtx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
+        final long installTime = t;
+        final long sixMonths = 6L * 30L * 24L * 3600L * 1000L;
+        boolean active = (System.currentTimeMillis() - installTime) < sixMonths;
+
+        final SharedPreferences fp = appCtx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
         fp.edit().putBoolean("flutter.is_premium", active).apply();
+
+        if (active) {
+            // Guard: if in-app billing resets is_premium to false, immediately restore it.
+            // Held in a static field to prevent garbage collection.
+            promoGuard = new SharedPreferences.OnSharedPreferenceChangeListener() {
+                public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+                    if ("flutter.is_premium".equals(key)) {
+                        if (!prefs.getBoolean("flutter.is_premium", true)) {
+                            if ((System.currentTimeMillis() - installTime) < sixMonths) {
+                                prefs.edit().putBoolean("flutter.is_premium", true).apply();
+                            }
+                        }
+                    }
+                }
+            };
+            fp.registerOnSharedPreferenceChangeListener(promoGuard);
+        }
     }
 
     private static void startUdpThread() {
@@ -194,8 +228,17 @@ public class SimBridge {
         int code = ev.getKeyCode();
         boolean down = ev.getAction() == KeyEvent.ACTION_DOWN;
 
-        // Triple Options press to open settings
-        if (code == KeyEvent.KEYCODE_BUTTON_START && down) {
+        // Write last keycode to prefs for diagnosis
+        if (down && ctx != null) {
+            ctx.getSharedPreferences("SimWheelPlugin", Context.MODE_PRIVATE)
+               .edit().putInt("last_keycode", code).apply();
+        }
+
+        // Triple-press Options to open Settings
+        // KEYCODE_BUTTON_START=108 (most Android) or KEYCODE_MENU=82 (some BT HID stacks)
+        boolean isOptionsBtn = (code == KeyEvent.KEYCODE_BUTTON_START)
+                            || (code == KeyEvent.KEYCODE_MENU);
+        if (isOptionsBtn && down) {
             long now = System.currentTimeMillis();
             if (now - optionsFirst > 1000) {
                 optionsCount = 0;
@@ -204,20 +247,20 @@ public class SimBridge {
             optionsCount++;
             if (optionsCount >= 3) {
                 optionsCount = 0;
-                if (ctx != null) {
-                    Intent intent = new Intent();
-                    intent.setClassName(ctx.getPackageName(), "com.ik.simwheel.sim.SettingsActivity");
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    ctx.startActivity(intent);
-                }
+                openSettings();
             }
         }
 
+        // PS button: recenter steering
+        if (code == KeyEvent.KEYCODE_BUTTON_MODE && down) {
+            state_steering = 0f;
+            dirty = true;
+        }
+
         // Map PS4 buttons to vJoy
-        // PS4 via Android HID: X=A, O=B, Square=X, Triangle=Y
         int btnIndex = -1;
-        if (code == KeyEvent.KEYCODE_BUTTON_A)            btnIndex = 0;  // X (Cross)
-        else if (code == KeyEvent.KEYCODE_BUTTON_B)       btnIndex = 1;  // O (Circle)
+        if (code == KeyEvent.KEYCODE_BUTTON_A)            btnIndex = 0;  // Cross
+        else if (code == KeyEvent.KEYCODE_BUTTON_B)       btnIndex = 1;  // Circle
         else if (code == KeyEvent.KEYCODE_BUTTON_X)       btnIndex = 2;  // Square
         else if (code == KeyEvent.KEYCODE_BUTTON_Y)       btnIndex = 3;  // Triangle
         else if (code == KeyEvent.KEYCODE_BUTTON_L1)      btnIndex = 4;
@@ -235,12 +278,6 @@ public class SimBridge {
 
         if (btnIndex >= 0 && btnIndex < 16) {
             buttonState[btnIndex] = down;
-            dirty = true;
-        }
-
-        // Recenter on PS button
-        if (code == KeyEvent.KEYCODE_BUTTON_MODE && down) {
-            state_steering = 0f;
             dirty = true;
         }
 
