@@ -173,6 +173,8 @@ public class SimBridge {
             j.put("throttle", (double) state_throttle);
             j.put("brake", (double) state_brake);
             j.put("clutch ", (double) state_clutch);
+            j.put("dx", 0.0);
+            j.put("dy", 0.0);
             for (int i = 0; i < 16; i++) {
                 j.put(String.valueOf(buttonMap[i]), buttonState[i]);
             }
@@ -243,13 +245,17 @@ public class SimBridge {
     }
 
     public static boolean onMotion(MotionEvent ev) {
-        if ((ev.getSource() & InputDevice.SOURCE_JOYSTICK) != 0) {
-            float brake = ev.getAxisValue(MotionEvent.AXIS_BRAKE);
-            float throttle = ev.getAxisValue(MotionEvent.AXIS_GAS);
+        int src = ev.getSource();
+        boolean isGameInput = (src & InputDevice.SOURCE_JOYSTICK) != 0
+                           || (src & InputDevice.SOURCE_GAMEPAD) != 0;
+        if (isGameInput) {
+            // LTRIGGER/RTRIGGER are the standard PS4 L2/R2 axes on Android
+            float brake = ev.getAxisValue(MotionEvent.AXIS_LTRIGGER);
+            float throttle = ev.getAxisValue(MotionEvent.AXIS_RTRIGGER);
 
-            // Fallback to LTRIGGER/RTRIGGER
-            if (brake == 0f)    brake    = ev.getAxisValue(MotionEvent.AXIS_LTRIGGER);
-            if (throttle == 0f) throttle = ev.getAxisValue(MotionEvent.AXIS_RTRIGGER);
+            // Fallback to BRAKE/GAS for other controller types
+            if (brake == 0f)    brake    = ev.getAxisValue(MotionEvent.AXIS_BRAKE);
+            if (throttle == 0f) throttle = ev.getAxisValue(MotionEvent.AXIS_GAS);
 
             // Apply deadzone
             brake    = applyDeadzone(brake,    triggerDeadzone);

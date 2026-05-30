@@ -18,18 +18,25 @@ public class SimApp extends Application {
 
     private static class Callbacks implements Application.ActivityLifecycleCallbacks {
 
-        public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+        private static void wrapCallback(Activity activity) {
             Window win = activity.getWindow();
             if (win != null) {
-                Window.Callback original = win.getCallback();
-                if (original != null) {
-                    win.setCallback(new InputWrap(original));
+                Window.Callback cb = win.getCallback();
+                if (cb != null && !(cb instanceof InputWrap)) {
+                    win.setCallback(new InputWrap(cb));
                 }
             }
         }
 
+        public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+            wrapCallback(activity);
+        }
+
         public void onActivityStarted(Activity activity) {}
-        public void onActivityResumed(Activity activity) {}
+        public void onActivityResumed(Activity activity) {
+            // Re-wrap in case Flutter replaced the callback after onCreate
+            wrapCallback(activity);
+        }
         public void onActivityPaused(Activity activity) {}
         public void onActivityStopped(Activity activity) {}
         public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
