@@ -47,6 +47,9 @@ public class SimBridge {
     private static Vibrator vibrator;
     private static Handler mainHandler;
 
+    // Debug axis readout (updated by onMotion, displayed in SettingsActivity)
+    public static volatile String debugAxes = "";
+
     // UDP
     private static String phoneName = "SimWheelPS4";
     private static String pcAddress = null;
@@ -100,7 +103,7 @@ public class SimBridge {
             public void run() {
                 try {
                     udpSocket = new DatagramSocket(pcPort);
-                    udpSocket.setSoTimeout(500);
+                    udpSocket.setSoTimeout(20);
                     byte[] recvBuf = new byte[512];
                     while (udpRunning) {
                         // Send discover broadcast
@@ -249,29 +252,45 @@ public class SimBridge {
         boolean isGameInput = (src & InputDevice.SOURCE_JOYSTICK) != 0
                            || (src & InputDevice.SOURCE_GAMEPAD) != 0;
         if (isGameInput) {
-            // LTRIGGER/RTRIGGER are the standard PS4 L2/R2 axes on Android
-            float brake = ev.getAxisValue(MotionEvent.AXIS_LTRIGGER);
-            float throttle = ev.getAxisValue(MotionEvent.AXIS_RTRIGGER);
+            float lt = ev.getAxisValue(MotionEvent.AXIS_LTRIGGER); // 17 standard
+            float bk = ev.getAxisValue(MotionEvent.AXIS_BRAKE);    // 23 alternate
+            // PS4 raw HID: L2 maps to AXIS_RX (12) on some Android/BT HID stacks
+            float rx = ev.getAxisValue(MotionEvent.AXIS_RX);
+            // RX may be bipolar (-1=rest, +1=full) — normalize to 0..1
+            if (rx < 0f) rx = (rx + 1f) / 2f;
 
-            // Fallback to BRAKE/GAS for other controller types
-            if (brake == 0f)    brake    = ev.getAxisValue(MotionEvent.AXIS_BRAKE);
-            if (throttle == 0f) throttle = ev.getAxisValue(MotionEvent.AXIS_GAS);
+            float rt = ev.getAxisValue(MotionEvent.AXIS_RTRIGGER); // 18 standard
+            float gs = ev.getAxisValue(MotionEvent.AXIS_GAS);      // 22 alternate
+            // PS4 raw HID: R2 maps to AXIS_RY (13) on some Android/BT HID stacks
+            float ry = ev.getAxisValue(MotionEvent.AXIS_RY);
+            if (ry < 0f) ry = (ry + 1f) / 2f;
 
-            // Apply deadzone
-            brake    = applyDeadzone(brake,    triggerDeadzone);
-            throttle = applyDeadzone(throttle, triggerDeadzone);
+            // Record raw values for SettingsActivity diagnostics
+            debugAxes = "LT=" + String.format("%.2f", lt)
+                + " BK=" + String.format("%.2f", bk)
+                + " RX=" + String.format("%.2f", rx)
+                + " | RT=" + String.format("%.2f", rt)
+                + " GS=" + String.format("%.2f", gs)
+                + " RY=" + String.format("%.2f", ry)
+                + " | RZ=" + String.format("%.2f", ev.getAxisValue(MotionEvent.AXIS_RZ));
 
-            // Apply gamma curve
-            if (brake > 0f)    brake    = (float) Math.pow(brake,    triggerCurve);
+            // Use whichever axis reports the highest value
+            float rawBrake    = Math.max(lt, Math.max(bk, rx));
+            float rawThrottle = Math.max(rt, Math.max(gs, ry));
+            if (rawBrake    < 0f) rawBrake    = 0f;
+            if (rawThrottle < 0f) rawThrottle = 0f;
+
+            float brake    = applyDeadzone(rawBrake,    triggerDeadzone);
+            float throttle = applyDeadzone(rawThrottle, triggerDeadzone);
+
+            if (brake    > 0f) brake    = (float) Math.pow(brake,    triggerCurve);
             if (throttle > 0f) throttle = (float) Math.pow(throttle, triggerCurve);
 
             state_brake    = brake;
             state_throttle = throttle;
 
-            // Gyro steering: AXIS_RZ = gyro Z (yaw)
+            // Gyro steering: AXIS_RZ = gyro Z (yaw) from PS4 via BT HID
             float gyroZ = ev.getAxisValue(MotionEvent.AXIS_RZ);
-            // Note: Android reports this as a normalized value from PS4 controller
-            // Integrate over approximate frame time (assuming ~16ms)
             float dtSeconds = 0.016f;
             state_steering += gyroZ * dtSeconds * (180f / (float) Math.PI) * steeringSensitivity;
             state_steering = Math.max(-maxDegrees, Math.min(maxDegrees, state_steering));

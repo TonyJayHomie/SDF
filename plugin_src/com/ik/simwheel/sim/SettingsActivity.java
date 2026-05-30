@@ -27,6 +27,7 @@ public class SettingsActivity extends Activity {
     private ProgressBar barL2;
     private ProgressBar barR2;
     private ProgressBar barGyro;
+    private TextView debugAxisView;
 
     private boolean refreshing = false;
 
@@ -62,6 +63,10 @@ public class SettingsActivity extends Activity {
         root.addView(makeLabel("Gyro Steering:"));
         barGyro = makeBar();
         root.addView(barGyro);
+
+        root.addView(makeLabel("Raw Axes (press L2/R2 to diagnose):"));
+        debugAxisView = makeLabel("waiting...");
+        root.addView(debugAxisView);
 
         // --- Calibration Section ---
         root.addView(makeSectionHeader("Calibration"));
@@ -247,11 +252,11 @@ public class SettingsActivity extends Activity {
 
                 barL2.setProgress((int)(brake * 100));
                 barR2.setProgress((int)(throttle * 100));
-                // Map steering to 0-100 range
                 int steeringPct = (int)((steering / maxDeg + 1f) * 50f);
                 if (steeringPct < 0) steeringPct = 0;
                 if (steeringPct > 100) steeringPct = 100;
                 barGyro.setProgress(steeringPct);
+                debugAxisView.setText(SimBridge.debugAxes);
 
                 handler.postDelayed(this, 100);
             }

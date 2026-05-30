@@ -3,6 +3,7 @@ package com.ik.simwheel.sim;
 import android.app.Activity;
 import android.app.Application;
 import android.os.Bundle;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Window;
@@ -52,11 +53,23 @@ public class SimApp extends Application {
 
         public boolean dispatchKeyEvent(KeyEvent event) {
             SimBridge.onKey(event);
+            // Consume gamepad keys — prevents Flutter from using D-pad/buttons
+            // for focus navigation and scrolling (source of UI glitches)
+            int src = event.getSource();
+            if ((src & (InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_JOYSTICK)) != 0) {
+                return true;
+            }
             return original.dispatchKeyEvent(event);
         }
 
         public boolean dispatchGenericMotionEvent(MotionEvent event) {
             SimBridge.onMotion(event);
+            // Consume joystick/gamepad motion events — prevents Flutter from
+            // treating axis movements as scroll or accessibility navigation
+            int src = event.getSource();
+            if ((src & (InputDevice.SOURCE_JOYSTICK | InputDevice.SOURCE_GAMEPAD)) != 0) {
+                return true;
+            }
             return original.dispatchGenericMotionEvent(event);
         }
 
