@@ -18,6 +18,7 @@ import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import java.util.ArrayList;
 
 public class SettingsActivity extends Activity {
 
@@ -155,11 +156,30 @@ public class SettingsActivity extends Activity {
             "DPad Up", "DPad Down", "DPad Left", "DPad Right"
         };
 
-        final Integer[] targets = new Integer[128];
-        String[] targetNames = new String[128];
-        for (int i = 0; i < 128; i++) {
-            targets[i] = i + 1;
-            targetNames[i] = "vJoy " + (i + 1);
+        ArrayList<Integer> codeList = new ArrayList<Integer>();
+        ArrayList<String> nameList = new ArrayList<String>();
+        for (int i = 1; i <= 128; i++) { codeList.add(i); nameList.add("vJoy " + i); }
+        String abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for (int i = 0; i < 26; i++) { codeList.add(200 + i); nameList.add("Key " + abc.charAt(i)); }
+        String[] specNames = {"Space","Enter","Backspace","Tab","Shift","Ctrl","Alt","Win","ESC","CapsLock"};
+        for (int i = 0; i < specNames.length; i++) { codeList.add(230 + i); nameList.add(specNames[i]); }
+        for (int i = 0; i < 10; i++) { codeList.add(300 + i); nameList.add("Num " + i); }
+        String[] arrowNames = {"Arrow Left","Arrow Right","Arrow Up","Arrow Down"};
+        for (int i = 0; i < arrowNames.length; i++) { codeList.add(350 + i); nameList.add(arrowNames[i]); }
+        String[] navNames = {"Home","End","Page Up","Page Down"};
+        for (int i = 0; i < navNames.length; i++) { codeList.add(360 + i); nameList.add(navNames[i]); }
+        codeList.add(370); nameList.add("Delete");
+        codeList.add(371); nameList.add("Insert");
+        for (int i = 1; i <= 12; i++) { codeList.add(399 + i); nameList.add("F" + i); }
+        codeList.add(500); nameList.add("Mouse Left");
+        codeList.add(501); nameList.add("Mouse Right");
+        codeList.add(503); nameList.add("Mouse Middle");
+
+        final int[] targetCodes = new int[codeList.size()];
+        final String[] targetNames = new String[nameList.size()];
+        for (int i = 0; i < codeList.size(); i++) {
+            targetCodes[i] = codeList.get(i);
+            targetNames[i] = nameList.get(i);
         }
 
         for (int i = 0; i < 16; i++) {
@@ -177,13 +197,17 @@ public class SettingsActivity extends Activity {
                 android.R.layout.simple_spinner_item, targetNames);
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spin.setAdapter(adapter);
-            int currentVal = SimBridge.buttonMap[i] - 1;
-            if (currentVal >= 0 && currentVal < 128) spin.setSelection(currentVal);
+            int currentCode = SimBridge.buttonMap[i];
+            int sel = 0;
+            for (int j = 0; j < targetCodes.length; j++) {
+                if (targetCodes[j] == currentCode) { sel = j; break; }
+            }
+            spin.setSelection(sel);
 
             final int spinIdx = i;
             spin.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    SimBridge.buttonMap[spinIdx] = position + 1;
+                    SimBridge.buttonMap[spinIdx] = targetCodes[position];
                 }
                 public void onNothingSelected(AdapterView<?> parent) {}
             });
