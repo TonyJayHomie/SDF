@@ -102,7 +102,7 @@ public class SimBridge {
         boolean active = (System.currentTimeMillis() - installTime) < sixMonths;
 
         final SharedPreferences fp = appCtx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
-        fp.edit().putBoolean("flutter.is_premium", active).apply();
+        fp.edit().putString("flutter.is_premium", active ? "true" : "false").apply();
 
         if (active) {
             // Guard: if in-app billing resets is_premium to false, immediately restore it.
@@ -110,9 +110,9 @@ public class SimBridge {
             promoGuard = new SharedPreferences.OnSharedPreferenceChangeListener() {
                 public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
                     if ("flutter.is_premium".equals(key)) {
-                        if (!prefs.getBoolean("flutter.is_premium", true)) {
+                        if (!"true".equals(prefs.getString("flutter.is_premium", "true"))) {
                             if ((System.currentTimeMillis() - installTime) < sixMonths) {
-                                prefs.edit().putBoolean("flutter.is_premium", true).apply();
+                                prefs.edit().putString("flutter.is_premium", "true").apply();
                             }
                         }
                     }
