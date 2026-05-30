@@ -1,0 +1,4 @@
+# APK build working directory — contains downloaded tools, decoded APK tree,
+# compiled DEX, and build artifacts. Java plugin sources are committed
+# separately under plugin_src/ once finalized.
+build_work/
