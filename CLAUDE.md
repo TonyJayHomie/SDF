@@ -15,40 +15,75 @@ There is **no Flutter source code** in this repo. The Dart logic is compiled AOT
 
 ## Build Environment (This Container)
 
-Available: **Java 21** (OpenJDK), **Gradle 8.14.3** (`/opt/gradle/bin/gradle`), Python 3.11.
+Available: **Java 21** (OpenJDK), Python 3.11.
 
-**Android SDK is NOT installed.** To build any Android APK you must first install it:
+**Do NOT use dl.google.com** — it returns 403 host_not_allowed in this environment.
+
+Install the Android build toolchain via apt (works offline in this container):
 
 ```bash
-# Download command-line tools
-wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdtools.zip
-unzip /tmp/cmdtools.zip -d /tmp/android-sdk/cmdline-tools/latest
-export ANDROID_HOME=/tmp/android-sdk
-export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+sudo apt-get update -qq
+DEBIAN_FRONTEND=noninteractive sudo apt-get install -qq -y \
+    default-jdk-headless apktool android-sdk-build-tools
 
-# Accept licenses and install build tools
-yes | sdkmanager --licenses
-sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+# android.jar (needed as javac bootclasspath)
+mkdir -p /tmp/android-sdk/platforms/android-34
+curl -L https://github.com/Sable/android-platforms/raw/master/android-34/android.jar \
+     -o /tmp/android-sdk/platforms/android-34/android.jar
+
+# r8/d8 (DEX compiler, replaces missing d8 in apt build-tools)
+curl -L https://storage.googleapis.com/r8-releases/raw/8.2.47/r8.jar -o /tmp/r8.jar
+
+# baksmali (dex → smali disassembler)
+curl -L https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.5.2.jar -o /tmp/baksmali.jar
 ```
 
-For APK decompilation (apktool) — not installed by default:
+Tool paths after apt install:
+- `apktool` → `/usr/bin/apktool`
+- `aapt2` / `zipalign` / `apksigner` → `/usr/lib/android-sdk/build-tools/debian/` (also on PATH)
+- `javac` → `/usr/bin/javac`
+
+Compile Java plugin and convert to DEX:
 ```bash
-wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
-# Run as: java -jar /usr/local/bin/apktool.jar d com.ik.simwheel.apk -o apk_decompiled/
+javac -source 1.8 -target 1.8 -bootclasspath /tmp/android-sdk/platforms/android-34/android.jar \
+      -d build/classes src/**/*.java
+java -cp /tmp/r8.jar com.android.tools.r8.D8 --release --min-api 21 \
+     --lib /tmp/android-sdk/platforms/android-34/android.jar \
+     --output build/dex $(find build/classes -name '*.class')
+java -jar /tmp/baksmali.jar d build/dex/classes.dex -o build/smali_out
 ```
 
-## Recommended Build Strategy
+**Important Java source constraints** (required to compile against android.jar):
+- Use `-source 1.8 -target 1.8` — no lambdas (use anonymous inner classes)
+- No switch-on-strings (use if/else chains)
+- No `buildMap{}` or other Kotlin stdlib calls
+- Theme references in manifest: use `@android:style/Theme.Holo.Light` not Material (avoids aapt2 missing-resource errors)
 
-**Do not patch the Flutter APK with overlays or AccessibilityService.** Previous attempts using these approaches produced apps that did not control the on-screen buttons and therefore the PC receiver never picked them up.
+## Build Strategy — Patching 5.2.2 Directly
 
-**The correct approach** is a standalone Kotlin Android app that speaks the same UDP JSON protocol as v5.2.2. This sidesteps the AOT binary problem entirely:
-- The new app connects to the PS4 controller via Bluetooth HID
-- Reads PS4 gyro for steering, L2/R2 triggers for throttle/brake
-- Sends the identical UDP JSON to port 4567 that the existing PC receiver parses
-- Renders its own UI with steering wheel visualization, calibration, and button mapping
-- Receives UDP back from the PC for vibration events (requires receiver modification too — see below)
+**5.2.2 is the only base. No standalone app. No overlay. No parallel app.**
 
-The v5.2.2 XAPK is the **reference** for the protocol and gyro math, not the base to patch.
+The correct approach patches the 5.2.2 XAPK directly via smali injection:
+
+1. Decode base APK: `apktool d -f -q --use-aapt2 com.ik.simwheel.apk -o base_dec`
+2. Neutralize Pairip: replace `LicenseContentProvider.smali` with a no-op, patch `LicenseClient.checkLicense()` to return-void
+3. Write Java plugin classes (SimApp + SimBridge + SettingsActivity) → compile → DEX via r8/D8 → disassemble to smali via baksmali → copy smali files into `base_dec/smali/com/ik/simwheel/sim/`
+4. Patch `base_dec/AndroidManifest.xml`: remove split requirements, set `android:name="com.ik.simwheel.sim.SimApp"`, remove Pairip entries, add BT/gamepad permissions, add SettingsActivity (no LAUNCHER intent-filter)
+5. Build carrier: `apktool b -q --use-aapt2 base_dec -o carrier.apk`
+6. Compose universal APK in Python: take carrier.apk, merge `lib/arm64-v8a/` + `lib/armeabi-v7a/` from original arm splits, bundle all 6 original split APKs as `assets/original_splits/` (padding to ≥99MB)
+7. `zipalign -p -f 4` then `apksigner sign` with v1+v2+v3
+
+**Do NOT merge xxhdpi/en/fr resources into base_dec** — the 9-patch PNGs from splits cause aapt2 compile errors. The base APK's own resources are sufficient.
+
+**Proof the gyro is untouched:** `lib/arm64-v8a/libapp.so` in the final APK must match SHA256 `fdbe3192c28cc2c0c197d1a23b13fee67e14d56ba81817359344c2d1d6dc3648` from the original 5.2.2 arm64 split.
+
+**6-month promo:** On first launch, `SimBridge.install()` writes `promo_install_time` to "SimWheelPromo" prefs. Each launch computes elapsed; if < 6 months writes `flutter.is_premium = true` (boolean) to "FlutterSharedPreferences" prefs. After 6 months writes false.
+
+**Single icon:** SettingsActivity has NO LAUNCHER intent-filter. It opens when the user triple-presses the PS4 Options button (KEYCODE_BUTTON_START 3× within 1 second) — detected in SimBridge.onKey().
+
+**Analog triggers:** Read from `SOURCE_JOYSTICK` events: `AXIS_BRAKE` (L2), `AXIS_GAS` (R2). Apply deadzone then gamma curve. Never threshold to binary 0/1.
+
+The v5.2.2 XAPK is reassembled from the 3 zip parts in this repo before decoding.
 
 ## Assembling the XAPK
 
