@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Test artifacts
+/tests/*.bin
+/tests/*.txt
+
+# Backup files created during operation
+backup.bin
+*_raw.bin
+*_readback.bin
+*_preErase_readback.bin
+*_diff.txt

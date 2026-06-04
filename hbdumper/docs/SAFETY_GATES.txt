@@ -1,0 +1,52 @@
+HB DUMPER - SAFETY GATES
+========================
+
+This build refuses to do anything destructive unless you have a verified
+backup. The gates are enforced in BOTH the GUI confirmations and the
+worker thread, so even a misclick cannot bypass them.
+
+ERASE TAB
+---------
+Mass-erase is REFUSED unless ALL of these are true:
+  1. A file exists at the configured Output path (default: backup.bin)
+  2. That file is exactly 65536 bytes (full 64 KiB GD32F130C8 flash)
+  3. A live SWD readback of the chip byte-matches that backup
+  4. A confirmation dialog is accepted
+  5. The literal word ERASE is typed in capitals
+
+If the chip is RDP-locked (so SWD readback returns 0xFFs and cannot match
+your UART-exploit backup), tick the SAFE_OVERRIDE checkbox FIRST. That
+skips step 3 only; steps 1, 2, 4, 5 are still enforced.
+
+FLASH TAB
+---------
+Programming is REFUSED unless:
+  1. A backup file exists with the right size (65536 bytes)
+  2. A confirmation dialog is accepted
+
+If you are flashing a factory-new chip (no firmware worth saving),
+tick FLASH_SAFE_OVERRIDE on the Flash tab to bypass step 1.
+
+LIBRARY TAB
+-----------
+Flash-from-library also enforces the same backup-required check and
+shows a confirm dialog with the file name and backup status.
+
+RESTORE BUTTON
+--------------
+The "One-click RESTORE backup.bin -> chip" button:
+  - Refuses if backup.bin is missing or not 65536 bytes
+  - Always asks for confirmation
+  - Does NOT require a SECOND backup (since the backup IS the source)
+
+DUMP IS ALWAYS SAFE
+-------------------
+The dump tabs (1, 1b) NEVER write to the chip. They only:
+  - load a small SRAM payload at 0x20000000 (RAM, not flash)
+  - resume execution
+  - capture UART or do dump_image
+Power-cycling the board after a dump always restores normal operation.
+
+TEST SWD IS ALWAYS SAFE
+-----------------------
+Tab 1b "Test SWD connection" only reads registers. It never writes flash.

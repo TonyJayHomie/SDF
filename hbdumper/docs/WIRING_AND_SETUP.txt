@@ -1,0 +1,89 @@
+HB DUMPER - WIRING AND SETUP
+============================
+
+Target board this project is built around
+----------------------------------------
+- Split hoverboard mainboard family using GD32F130C8T6
+- RoboDurden Gen2.x layout 2.0 / board 2.1.1 family
+- Exposed UART on the split board is PA2/PA3 (USART1)
+- PA2/PA3 are NOT 5V-tolerant on GD32F130C8T6
+- PA9/PA10 are 5V-tolerant at MCU level, but only use that path if you have
+  physically confirmed those pins are actually routed on your hardware
+
+1) ST-LINK V2 WIRING (required for all modes)
+---------------------------------------------
+Connect the ST-Link to the board's SWD pads / header:
+- ST-Link GND   -> board GND
+- ST-Link SWDIO -> board SWDIO / DIO
+- ST-Link SWCLK -> board SWCLK / CLK
+- ST-Link 3.3V  -> board 3.3V sense / power as appropriate for your setup
+Optional if available:
+- ST-Link NRST  -> board reset
+
+2) WEMOS / 3.3V USB-TTL MODE (recommended)
+------------------------------------------
+Use this when talking to the exposed split-board UART on PA2/PA3.
+- USB-TTL GND -> board GND
+- USB-TTL RX  -> board TX (PA2 if the board labels TX from MCU side)
+- USB-TTL TX  -> board RX (PA3)
+
+This is the safest electrical path for the exact split-board UART.
+
+3) UNO PASSTHROUGH MODE (included because you asked for both)
+-------------------------------------------------------------
+Safe fallback wiring:
+- UNO GND -> board GND
+- UNO RX  -> board TX
+- Leave UNO TX disconnected unless you add proper level shifting
+
+Why:
+- The split-board exposed UART is PA2/PA3
+- PA3 is not 5V-tolerant
+- Driving a raw 5V UNO TX directly into PA3 is not advised
+
+RX-only capture is enough for the dumper because the SRAM payload only needs to
+transmit the flash stream outward; the GUI captures the output on the PC side.
+
+4) GUI TOGGLES
+--------------
+Adapter toggle:
+- Wemos / 3.3V adapter
+- UNO passthrough (RX-only safe)
+
+UART target toggle:
+- USART1 on PA2/PA3 -> default for the split-board family
+- USART0 on PA9/PA10 -> experiment mode only if routed on your board
+
+5) DUMP FLOW
+------------
+- Open the GUI
+- Pick the COM port for your USB-TTL adapter
+- Leave baud at 115200 unless you changed the payload
+- Pick output file (backup.bin)
+- Select the adapter type and UART target
+- Click Run Dump
+
+The app will:
+- open serial capture first
+- load the SRAM payload into 0x20000000 using OpenOCD
+- set MSP and PC to payload entry
+- resume execution
+- capture the HBDP framed dump
+- verify CRC32
+- write backup.bin and also a raw capture file
+
+6) ERASE / FLASH
+----------------
+Erase tab:
+- performs unlock + mass erase via OpenOCD
+- do this only after you have a verified backup
+
+Flash tab:
+- programs a .hex or .bin via OpenOCD
+- intended for RoboDurden Gen2.x or your own test build
+
+7) OPENOCD
+----------
+This snapshot includes a bundled xPack OpenOCD Windows x64 build under:
+  bin\openocd\extracted\xpack-openocd-0.12.0-7\
+The batch launcher sets OPENOCD_SCRIPTS automatically when that bundle exists.

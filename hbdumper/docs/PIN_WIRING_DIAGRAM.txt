@@ -1,0 +1,85 @@
+HB DUMPER - VISUAL WIRING DIAGRAM
+=================================
+
+Hardware on the bench
+  - ST-Link V2 USB dongle (any clone is fine)
+  - 3.3V USB-TTL adapter (Wemos D1, CP2102, CH340, FTDI) OR Arduino UNO in TTL passthrough RX-only mode
+  - Split-board hoverboard mainboard with GD32F130C8T6
+  - PC running HBDumper.exe
+
+ST-Link 10-pin header (mating side, IDC ribbon):
+                +-----+-----+
+       VCC 3.3V | 1   | 2   | SWDIO
+                +-----+-----+
+   SWCLK / TCK  | 3   | 4   | GND
+                +-----+-----+
+            ?   | 5   | 6   | SWO/TDO
+                +-----+-----+
+       NRST     | 7   | 8   | ?
+                +-----+-----+
+       GND/3.3V | 9   | 10  | TGT_VCC
+                +-----+-----+
+
+Minimum wires you actually use:
+  - Pin 1  : 3V3 sense (do NOT power the whole board from here; just sense)
+  - Pin 2  : SWDIO -> board SWDIO pad
+  - Pin 3  : SWCLK -> board SWCLK pad
+  - Pin 4  : GND   -> board GND
+  - Pin 7  : NRST  -> board reset pad (optional; OpenOCD can also reset via SWD)
+
+The GD32F130 split-board mainboard usually exposes a small 4 or 5 pad cluster
+labelled DIO, CLK, GND, 3V3 (and sometimes RST). Match the labels.
+
+
+USART target wiring
+-------------------
+
+PRIMARY (split-board 2.1.1, RoboDurden layout 2.0) - PA2 / PA3 = USART1
+SECONDARY (only if your variant routes it) - PA9 / PA10 = USART0
+
+PA2 / PA3 (NOT 5V tolerant) - safest with a Wemos D1 / CP2102 / CH340 / FTDI 3.3V adapter:
+
+   board                               3.3V USB-TTL adapter
+   +--------------+                    +-----------------+
+   | PA2 (TX) o---|----[wire]----------|--o RX           |
+   | PA3 (RX) o---|----[wire]----------|--o TX (only if  |
+   |              |                    |       writing) |
+   |       GND o--|----[wire]----------|--o GND          |
+   +--------------+                    +-----------------+
+                          ! same GND as ST-Link GND !
+
+Dump-only mode (recommended) needs only board TX + GND:
+   board PA2 (TX) ---> adapter RX
+   board GND      ---> adapter GND
+
+PA9 / PA10 (5V tolerant) - if you only have an UNO and want to use USART0:
+
+   board                               Arduino UNO HoodLoader2 / TTL passthrough
+   +--------------+                    +-----------------+
+   | PA9  (TX) o--|----[wire]----------|--o RX (D0)      |
+   |       GND o--|----[wire]----------|--o GND          |
+   +--------------+                    +-----------------+
+   (Leave UNO TX disconnected unless level shifting.)
+
+
+Adapter mode toggle in GUI
+--------------------------
+- "Wemos / 3.3V adapter" : preferred for the exposed split-board UART (PA2/PA3)
+- "UNO passthrough"      : RX-only safe fallback
+
+
+Power
+-----
+- ST-Link V2 powers itself from your PC USB port.
+- The hoverboard mainboard needs its own battery / supply (typically 36V/42V).
+- Many split boards work for SWD even with just the 3V3 pad fed from the
+  ST-Link, but this is variant-dependent. Safer: power the board normally
+  from the battery, and only share GND + 3.3V SENSE with the ST-Link.
+
+
+Triple-check before powering anything up
+----------------------------------------
+1. GND of ST-Link, GND of USB-TTL adapter, GND of board all common.
+2. No crossed RX/TX between ST-Link and the UART adapter.
+3. PA3 (board RX) is 3.3V only. Do not drive 5V into it.
+4. The board's main battery negative is the same GND.

@@ -1,0 +1,49 @@
+HB DUMPER - QUICK START
+=======================
+
+Step 0 - INSTALL PREREQS (one time)
+- Install Python 3 for Windows from python.org (tick "Add to PATH").
+- Optionally install ST-Link USB drivers (most Windows 10/11 setups already have them).
+
+Step 1 - WIRE
+- ST-Link V2  -> board SWD pads (SWDIO, SWCLK, GND, 3.3V).
+- USB-TTL     -> board UART (Wemos 3.3V recommended).
+  For the GD32F130 split board (RoboDurden Gen2.x layout 2.0 / 2.1.1):
+    PA2 = USART1 TX  (board side)
+    PA3 = USART1 RX
+  See docs/WIRING_AND_SETUP.txt for full options including UNO RX-only mode.
+
+Step 2 - LAUNCH
+- Double-click run_hbdumper.bat.
+- It auto-detects the bundled OpenOCD under bin/openocd/extracted/... and
+  installs pyserial if missing.
+
+Step 3 - TRY THE FAST PATH FIRST
+- Open tab "1b) SWD quick dump (no UART)".
+- Click "Test SWD connection".
+  - If OK -> click "Direct SWD dump".
+  - If it succeeds, you already have backup.bin. Done.
+
+Step 4 - FALLBACK TO UART EXPLOIT
+- If the chip is RDP-locked, SWD readback will return 0xFFs.
+- Open tab "1) Dump (backup)".
+- Select Wemos or UNO mode, USART1 PA2/PA3.
+- Pick the right COM port.
+- Click "Run Dump".
+
+Step 5 - VERIFY
+- Open tab "4) Verify backup".
+- Click "Verify current backup file".
+- This re-reads via SWD and byte-compares.
+
+Step 6 - ERASE
+- Only after a verified backup exists, open tab "2) Erase" and confirm.
+
+Step 7 - FLASH NEW FIRMWARE
+- Open tab "3) Flash".
+- Pick a .hex or .bin (e.g. RoboDurden Gen2.1.1 build).
+- Click "Program chip".
+
+Step 8 - VERIFY AGAIN (optional but recommended)
+- After flashing, you can use tab "4) Verify backup" against the file
+  you just flashed to confirm a clean program+verify+reset cycle.

@@ -1,0 +1,40 @@
+HB DUMPER - ST-LINK V2 DRIVER SETUP ON WINDOWS
+==============================================
+
+The bundled OpenOCD talks to the ST-Link V2 over USB through libusb.
+On Windows it needs a WinUSB-style driver installed on the ST-Link V2
+device handle. The bundled Zadig installer takes care of that in one
+step.
+
+Step 1 - Plug the ST-Link V2 into your PC
+- Windows will enumerate it and may auto-install a generic HID driver.
+
+Step 2 - Run tools\zadig-2.8.exe (as admin)
+- In Zadig, click Options -> List All Devices.
+- In the dropdown, select the ST-Link V2 entry. It usually shows up as:
+  "STM32 STLink"   or   "ST-Link/V2"
+- On the right side, pick driver: WinUSB (v6.x.x.x).
+- Click "Replace Driver" (if a driver is already installed) or
+  "Install Driver" (if not).
+- Wait for the green "Driver Installation: SUCCESS" dialog.
+
+Step 3 - Confirm in HBDumper
+- Launch HBDumper.exe
+- Open tab "1b) SWD quick dump (no UART)"
+- Click "Test SWD connection"
+- You should see CPUID + device ID values logged.
+
+Notes
+-----
+- If you also want STM32CubeProgrammer's UI to still see the ST-Link
+  via ST's own driver, you can switch back later by uninstalling the
+  WinUSB driver via Device Manager and reinstalling ST's STSW-LINK009.
+- The bundled OpenOCD will always work with the WinUSB driver from Zadig.
+- Zadig source: https://zadig.akeo.ie/  (GPL)
+
+Troubleshooting
+---------------
+- "LIBUSB_ERROR_NOT_FOUND" in the log -> Zadig step was skipped.
+- "Error: open failed" -> driver installed but device not present;
+  re-plug the ST-Link.
+- "Transport error" -> reduce ST-Link speed to 480 in the GUI.
